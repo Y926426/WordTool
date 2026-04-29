@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-NAME = "调整图表"
+NAME = "1.调整图表"
 
 def run(doc):
     import re
