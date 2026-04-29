@@ -1,11 +1,11 @@
 import os
 import sys
 import shutil
-import urllib.request
 import zipfile
 import tempfile
 import subprocess
 import time
+import requests
 
 REPO_URL = "https://github.com/Y926426/WordTool/archive/refs/heads/main.zip"
 CURRENT_DIR = os.path.dirname(os.path.abspath(sys.argv[0]))
@@ -15,13 +15,18 @@ def download_and_update():
     temp_zip = None
     extract_dir = None
     try:
+        # 使用 requests 下载，自动验证证书（可使用系统证书）
+        # 如果仍有证书错误，可添加 verify=False 参数，但会降低安全性
+        resp = requests.get(REPO_URL, stream=True)
+        resp.raise_for_status()
         temp_zip = os.path.join(tempfile.gettempdir(), "wordtool_latest.zip")
-        urllib.request.urlretrieve(REPO_URL, temp_zip)
+        with open(temp_zip, 'wb') as f:
+            for chunk in resp.iter_content(chunk_size=8192):
+                f.write(chunk)
         print("✅ 下载完成，正在解压...")
         extract_dir = tempfile.mkdtemp()
         with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
             zip_ref.extractall(extract_dir)
-        # 找到解压后的根文件夹
         source_dir = None
         for item in os.listdir(extract_dir):
             full = os.path.join(extract_dir, item)
@@ -31,9 +36,7 @@ def download_and_update():
         if not source_dir:
             print("❌ 未找到解压后的 WordTool 目录")
             return False
-
         print("📂 正在更新文件...")
-        # 复制文件，跳过 updater.py 自身
         for item in os.listdir(source_dir):
             s = os.path.join(source_dir, item)
             d = os.path.join(CURRENT_DIR, item)
