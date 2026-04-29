@@ -1,11 +1,11 @@
 import os
 import sys
 import shutil
+import urllib.request
 import zipfile
 import tempfile
 import subprocess
 import time
-import requests
 
 REPO_URL = "https://github.com/Y926426/WordTool/archive/refs/heads/main.zip"
 CURRENT_DIR = os.path.dirname(os.path.abspath(sys.argv[0]))
@@ -15,14 +15,8 @@ def download_and_update():
     temp_zip = None
     extract_dir = None
     try:
-        # 使用 requests 下载，自动验证证书（可使用系统证书）
-        # 如果仍有证书错误，可添加 verify=False 参数，但会降低安全性
-        resp = requests.get(REPO_URL, stream=True)
-        resp.raise_for_status()
         temp_zip = os.path.join(tempfile.gettempdir(), "wordtool_latest.zip")
-        with open(temp_zip, 'wb') as f:
-            for chunk in resp.iter_content(chunk_size=8192):
-                f.write(chunk)
+        urllib.request.urlretrieve(REPO_URL, temp_zip)
         print("✅ 下载完成，正在解压...")
         extract_dir = tempfile.mkdtemp()
         with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
@@ -67,7 +61,19 @@ if __name__ == "__main__":
     success = download_and_update()
     if success:
         print("🚀 正在重新启动主程序...")
-        subprocess.Popen([sys.executable, os.path.join(CURRENT_DIR, "main.py")])
+        main_py = os.path.join(CURRENT_DIR, "main.py")
+        # 优先使用 pythonw.exe 启动（无控制台）
+        pythonw_exe = None
+        if sys.executable.endswith("python.exe"):
+            pythonw_exe = sys.executable.replace("python.exe", "pythonw.exe")
+        else:
+            # 在 PATH 中查找 pythonw
+            pythonw_exe = shutil.which("pythonw")
+        if pythonw_exe and os.path.exists(pythonw_exe):
+            subprocess.Popen([pythonw_exe, main_py])
+        else:
+            # 回退到 python.exe（会有控制台）
+            subprocess.Popen([sys.executable, main_py])
     else:
         print("❌ 更新失败，请检查网络或手动下载。")
         input("按回车键退出...")
