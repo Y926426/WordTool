@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-NAME = "2.检查空格空行"
+NAME = "检查空格空行"
 
 def run(doc):
     import re
