@@ -3,7 +3,7 @@ import os
 import sys
 import importlib.util
 import tkinter as tk
-from tkinter import scrolledtext, messagebox
+from tkinter import scrolledtext, messagebox, filedialog
 import threading
 import subprocess
 import pythoncom
@@ -86,7 +86,6 @@ def get_word_app_and_doc():
     return None, None
 
 def get_document_path_via_file_dialog():
-    from tkinter import filedialog
     file_path = filedialog.askopenfilename(
         title="请选择要处理的 Word 文档",
         filetypes=[("Word文档", "*.docx *.doc *.wps"), ("所有文件", "*.*")]
@@ -226,7 +225,15 @@ class WordToolApp:
             self.log_msg("❌ 错误：找不到 updater.py 文件，请确保它与 main.py 在同一目录。")
             return
         try:
-            subprocess.Popen([sys.executable, updater_path])
+            # 找到系统的 python.exe（而不是 pythonw.exe）
+            python_exe = sys.executable
+            if "pythonw.exe" in python_exe.lower():
+                base_dir = os.path.dirname(python_exe)
+                possible = os.path.join(base_dir, "python.exe")
+                if os.path.exists(possible):
+                    python_exe = possible
+            # 使用 python.exe 启动 updater（会有控制台窗口）
+            subprocess.Popen([python_exe, updater_path])
             self.root.quit()
         except Exception as e:
             self.log_msg(f"❌ 启动更新失败: {e}")
