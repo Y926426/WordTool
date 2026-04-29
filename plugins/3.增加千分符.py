@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-NAME = "增加千分符"
+NAME = "3.增加千分符"
 
 def run(doc):
     import re
