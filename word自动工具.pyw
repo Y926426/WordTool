@@ -3,7 +3,7 @@ import os
 import sys
 import importlib.util
 import tkinter as tk
-from tkinter import scrolledtext, messagebox, filedialog
+from tkinter import scrolledtext, messagebox
 import threading
 import subprocess
 import pythoncom
@@ -58,27 +58,22 @@ def get_wps_window_title():
         if win32gui.IsWindowVisible(hwnd) and win32gui.IsWindowEnabled(hwnd):
             class_name = win32gui.GetClassName(hwnd)
             title = win32gui.GetWindowText(hwnd)
-            # WPS文字窗口类名通常包含 "WPS" 或 "Kwps"
             if ('WPS' in class_name or 'Kwps' in class_name) and title:
                 titles.append(title)
         return True
     titles = []
     win32gui.EnumWindows(enum_callback, titles)
     if titles:
-        # 取第一个匹配的窗口标题
         return titles[0]
     return None
 
 def get_document_name_from_title(title):
-    """从WPS窗口标题中提取文档名，例如 '我的文档.docx - WPS文字' -> '我的文档.docx'"""
     if not title:
         return "未知"
-    # 常见分隔符： - WPS文字、 [兼容模式] 等
     parts = re.split(r' - | \[|\]', title)
     return parts[0].strip()
 
 def get_word_app_and_doc():
-    """尝试获取Word或WPS的应用程序对象及活动文档（仅Microsoft Word可靠）"""
     for progid in ["Word.Application", "Kwps.Application"]:
         try:
             app = win32.GetActiveObject(progid)
@@ -91,7 +86,7 @@ def get_word_app_and_doc():
     return None, None
 
 def get_document_path_via_file_dialog():
-    """弹出文件选择对话框，让用户手动选择文档"""
+    from tkinter import filedialog
     file_path = filedialog.askopenfilename(
         title="请选择要处理的 Word 文档",
         filetypes=[("Word文档", "*.docx *.doc *.wps"), ("所有文件", "*.*")]
@@ -105,11 +100,18 @@ class WordToolApp:
         self.root.geometry("560x620")
         self.root.resizable(True, True)
 
-        # 状态栏（显示当前文档名，每秒刷新）
+        # 获取本地版本号
+        self.local_version = get_local_version()
+
+        # 状态栏（显示当前文档名 + 版本号）
         self.status_frame = tk.Frame(self.root)
         self.status_frame.pack(fill=tk.X, padx=10, pady=5)
+
         self.current_doc_label = tk.Label(self.status_frame, text="当前文档：未检测", fg="blue", anchor="w")
         self.current_doc_label.pack(side=tk.LEFT)
+
+        self.version_label = tk.Label(self.status_frame, text=f"v{self.local_version}", fg="gray", anchor="e")
+        self.version_label.pack(side=tk.RIGHT)
 
         self.btn_frame = tk.Frame(self.root)
         self.btn_frame.pack(pady=10, fill=tk.BOTH, expand=True)
@@ -143,13 +145,11 @@ class WordToolApp:
         self.update_btn.pack(pady=5)
 
     def refresh_doc_status(self):
-        """定期刷新当前文档名（通过WPS窗口标题）"""
         title = get_wps_window_title()
         if title:
             doc_name = get_document_name_from_title(title)
             self.current_doc_label.config(text=f"当前文档：{doc_name}", fg="green")
         else:
-            # 尝试 Word COM
             _, doc = get_word_app_and_doc()
             if doc:
                 self.current_doc_label.config(text=f"当前文档：{doc.Name}", fg="green")
@@ -160,7 +160,7 @@ class WordToolApp:
 
     def check_for_updates(self):
         def task():
-            local_ver = get_local_version()
+            local_ver = self.local_version
             remote_ver = check_remote_version()
             if remote_ver and remote_ver != local_ver:
                 self.root.after(0, lambda: self.log_msg(f"✨ 发现新版本 {remote_ver}（当前 {local_ver}），请点击「获取最新版本」更新。"))
@@ -168,17 +168,13 @@ class WordToolApp:
         threading.Thread(target=task, daemon=True).start()
 
     def get_active_document_for_processing(self):
-        """获取可用于处理的文档对象（优先使用已打开的Word/WPS实例，否则手动选择）"""
-        # 1. 尝试获取已运行的 Word/WPS 实例中的活动文档
         app, doc = get_word_app_and_doc()
         if doc:
             return app, doc
-        # 2. 提示用户手动选择文件
         self.log_msg("⚠️ 无法自动获取已打开的文档，请手动选择一个文件（将复制一份临时处理，不影响原文件）")
         file_path = get_document_path_via_file_dialog()
         if not file_path:
             return None, None
-        # 创建新的 Word 实例打开该文档
         try:
             new_app = win32.gencache.EnsureDispatch("Word.Application")
             new_app.Visible = False
@@ -202,7 +198,6 @@ class WordToolApp:
                 self.log_msg(f"📄 正在处理文档：{doc.Name}")
                 success, msg = plugin_func(doc)
                 self.log_msg(f"{'✅' if success else '❌'} {msg}")
-                # 如果文档是临时打开的新实例，且用户没有明确要求保存，则关闭不保存
                 if need_cleanup and doc:
                     try:
                         doc.Close(SaveChanges=0)
