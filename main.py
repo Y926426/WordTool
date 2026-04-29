@@ -9,6 +9,8 @@ import subprocess
 import pythoncom
 import win32com.client as win32
 import urllib.request
+import win32gui
+import re
 
 # ---------- 版本检测 ----------
 REMOTE_VERSION_URL = "https://raw.githubusercontent.com/Y926426/WordTool/main/version.txt"
@@ -23,8 +25,7 @@ def get_local_version():
 def check_remote_version():
     try:
         with urllib.request.urlopen(REMOTE_VERSION_URL, timeout=5) as resp:
-            remote_version = resp.read().decode('utf-8').strip()
-            return remote_version
+            return resp.read().decode('utf-8').strip()
     except:
         return None
 
@@ -51,6 +52,52 @@ def load_plugins(plugins_dir="plugins"):
                 print(f"❌ 加载插件 {fname} 失败: {e}")
     return plugins
 
+def get_active_document_path_via_window():
+    """通过窗口标题获取WPS当前活动文档的路径（如果文档已保存）"""
+    def enum_windows_callback(hwnd, result):
+        if win32gui.IsWindowVisible(hwnd) and win32gui.IsWindowEnabled(hwnd):
+            title = win32gui.GetWindowText(hwnd)
+            class_name = win32gui.GetClassName(hwnd)
+            # WPS文字窗口类名通常包含 "WPS" 或 "KWPS"，标题包含扩展名
+            if ('WPS' in class_name or 'KWPS' in class_name) and any(ext in title for ext in ['.docx', '.doc', '.wps', '.docm']):
+                # 提取文件名，标题格式可能是 "文档名 - WPS文字" 或 "[文档名]"
+                parts = re.split(r' - | \[|\]', title)
+                if parts:
+                    doc_name = parts[0].strip()
+                    # 在常见目录中搜索
+                    for search_dir in [os.path.expanduser("~\\Documents"), os.path.expanduser("~\\Desktop")]:
+                        for ext in ['.docx', '.doc', '.wps', '.docm']:
+                            full_path = os.path.join(search_dir, doc_name + ext)
+                            if os.path.exists(full_path):
+                                result.append(full_path)
+                                return False
+                    # 如果标题可能包含完整路径
+                    if os.path.exists(doc_name):
+                        result.append(doc_name)
+                        return False
+        return True
+
+    windows = []
+    win32gui.EnumWindows(enum_windows_callback, windows)
+    if windows:
+        return windows[0]
+    return None
+
+def get_active_document_path():
+    """获取当前活动文档路径（先COM，后窗口）"""
+    # 尝试通过 COM 获取 Word 活动文档
+    for progid in ["Word.Application", "Kwps.Application"]:
+        try:
+            app = win32.GetActiveObject(progid)
+            if app.Documents.Count > 0:
+                doc = app.ActiveDocument
+                if doc and doc.FullName:
+                    return doc.FullName
+        except:
+            pass
+    # 尝试通过窗口标题获取（适用于WPS）
+    return get_active_document_path_via_window()
+
 class WordToolApp:
     def __init__(self):
         self.root = tk.Tk()
@@ -58,17 +105,9 @@ class WordToolApp:
         self.root.geometry("560x600")
         self.root.resizable(True, True)
 
-        # 状态栏（显示当前文档，可选）
-        self.status_frame = tk.Frame(self.root)
-        self.status_frame.pack(fill=tk.X, padx=10, pady=5)
-        self.current_doc_label = tk.Label(self.status_frame, text="当前文档：未检测", fg="blue", anchor="w")
-        self.current_doc_label.pack(side=tk.LEFT)
-
-        # 按钮区域
         self.btn_frame = tk.Frame(self.root)
         self.btn_frame.pack(pady=10, fill=tk.BOTH, expand=True)
 
-        # 日志区域
         self.log = scrolledtext.ScrolledText(self.root, height=15, width=70)
         self.log.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
 
@@ -77,8 +116,7 @@ class WordToolApp:
 
         self.plugins = load_plugins()
         self.create_buttons()
-        self.refresh_current_doc()   # 定时刷新文档名
-        self.check_for_updates()     # 后台检查更新
+        self.check_for_updates()
         self.root.mainloop()
 
     def create_buttons(self):
@@ -93,62 +131,57 @@ class WordToolApp:
                                 width=30, pady=2)
                 btn.pack(pady=3)
         tk.Label(self.btn_frame, text="").pack()
-
-        # 更新按钮（可能高亮）
         self.update_btn = tk.Button(self.btn_frame, text="📥 获取最新版本", command=self.run_update,
                                     width=30, pady=2, bg="#d9ead3")
         self.update_btn.pack(pady=5)
 
-    def refresh_current_doc(self):
-        """安全获取当前活动文档名称（支持Word和WPS）"""
-        try:
-            word = win32.gencache.EnsureDispatch('Word.Application')
-            if word.Documents.Count == 0:
-                self.current_doc_label.config(text="当前文档：未打开任何文档", fg="orange")
-            else:
-                doc = word.ActiveDocument
-                if doc:
-                    self.current_doc_label.config(text=f"当前文档：{doc.Name}", fg="green")
-                else:
-                    self.current_doc_label.config(text="当前文档：未知", fg="red")
-        except Exception as e:
-            # 可能WPS没有注册，忽略
-            self.current_doc_label.config(text="当前文档：无法连接", fg="red")
-        finally:
-            if self.root.winfo_exists():
-                self.root.after(1000, self.refresh_current_doc)
-
     def check_for_updates(self):
-        """后台检查远程版本，如有更新则提示并高亮更新按钮"""
         def task():
             local_ver = get_local_version()
             remote_ver = check_remote_version()
             if remote_ver and remote_ver != local_ver:
-                def update_ui():
-                    self.log_msg(f"✨ 发现新版本 {remote_ver}（当前 {local_ver}），请点击「获取最新版本」更新。")
-                    self.update_btn.config(bg="#ffa500", text="📥 有新版本！")
-                self.root.after(0, update_ui)
+                self.root.after(0, lambda: self.log_msg(f"✨ 发现新版本 {remote_ver}（当前 {local_ver}），请点击「获取最新版本」更新。"))
+                self.root.after(0, lambda: self.update_btn.config(bg="#ffa500", text="📥 有新版本！"))
         threading.Thread(target=task, daemon=True).start()
 
     def run_plugin(self, plugin_func):
         def task():
             pythoncom.CoInitialize()
-            word = None
+            word_app = None
+            doc = None
+            doc_path = None
+            need_close_doc = False
             try:
-                word = win32.gencache.EnsureDispatch('Word.Application')
-                doc = word.ActiveDocument
-                if doc is None:
-                    self.log_msg("❌ 请先在 Word 中打开一个文档！")
+                # 获取文档路径
+                doc_path = get_active_document_path()
+                if not doc_path:
+                    self.log_msg("❌ 无法自动检测到打开的文档（请确保文档已保存），请手动打开Word或使用Microsoft Word。")
                     return
-                self.log_msg(f"📄 正在处理文档：{doc.Name}")
+                self.log_msg(f"📄 正在处理文档：{os.path.basename(doc_path)}")
+                # 打开文档（使用 Word 对象模型，兼容 WPS）
+                word_app = win32.gencache.EnsureDispatch("Word.Application")
+                # 设置为不可见，避免闪烁
+                word_app.Visible = False
+                doc = word_app.Documents.Open(doc_path)
+                need_close_doc = True
+                # 执行插件
                 success, msg = plugin_func(doc)
                 self.log_msg(f"{'✅' if success else '❌'} {msg}")
             except Exception as e:
                 self.log_msg(f"❌ 运行出错: {e}")
+                import traceback
+                traceback.print_exc()
             finally:
-                if word:
-                    doc = None
-                    word = None
+                if need_close_doc and doc:
+                    try:
+                        doc.Close(SaveChanges=0)  # 不保存
+                    except:
+                        pass
+                if word_app:
+                    try:
+                        word_app.Quit()
+                    except:
+                        pass
                 pythoncom.CoUninitialize()
         threading.Thread(target=task).start()
 
