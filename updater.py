@@ -10,20 +10,25 @@ import requests
 
 REPO_URL = "https://github.com/Y926426/WordTool/archive/refs/heads/main.zip"
 CURRENT_DIR = os.path.dirname(os.path.abspath(sys.argv[0]))
+LOG_FILE = os.path.join(CURRENT_DIR, "updater_log.txt")
+
+def log(msg):
+    with open(LOG_FILE, 'a', encoding='utf-8') as f:
+        f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {msg}\n")
+    print(msg)
 
 def download_and_update():
-    print("📥 正在从 GitHub 下载最新版本...")
+    log("📥 正在从 GitHub 下载最新版本...")
     temp_zip = None
     extract_dir = None
     try:
-        # 禁用 SSL 验证（仅用于可信网络）
         resp = requests.get(REPO_URL, stream=True, verify=False)
         resp.raise_for_status()
         temp_zip = os.path.join(tempfile.gettempdir(), "wordtool_latest.zip")
         with open(temp_zip, 'wb') as f:
             for chunk in resp.iter_content(chunk_size=8192):
                 f.write(chunk)
-        print("✅ 下载完成，正在解压...")
+        log("✅ 下载完成，正在解压...")
         extract_dir = tempfile.mkdtemp()
         with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
             zip_ref.extractall(extract_dir)
@@ -34,9 +39,9 @@ def download_and_update():
                 source_dir = full
                 break
         if not source_dir:
-            print("❌ 未找到解压后的 WordTool 目录")
+            log("❌ 未找到解压后的 WordTool 目录")
             return False
-        print("📂 正在更新文件...")
+        log("📂 正在更新文件...")
         for item in os.listdir(source_dir):
             s = os.path.join(source_dir, item)
             d = os.path.join(CURRENT_DIR, item)
@@ -48,10 +53,10 @@ def download_and_update():
                 shutil.copytree(s, d)
             else:
                 shutil.copy2(s, d)
-        print("✅ 更新完成！")
+        log("✅ 更新完成！")
         return True
     except Exception as e:
-        print(f"❌ 更新失败: {e}")
+        log(f"❌ 更新失败: {e}")
         return False
     finally:
         try:
@@ -65,20 +70,34 @@ def download_and_update():
 def show_message_box(title, message):
     ctypes.windll.user32.MessageBoxW(0, message, title, 0)
 
+def restart_main():
+    main_py = os.path.join(CURRENT_DIR, "main.py")
+    log(f"尝试启动主程序: {main_py}")
+    # 查找 pythonw.exe 的路径
+    pythonw_exe = None
+    # 从当前 Python 解释器路径推断
+    if sys.executable.endswith("python.exe"):
+        base = sys.executable[:-10]  # 去掉 python.exe
+        candidate = os.path.join(base, "pythonw.exe")
+        if os.path.exists(candidate):
+            pythonw_exe = candidate
+    if not pythonw_exe:
+        pythonw_exe = shutil.which("pythonw")
+    if pythonw_exe and os.path.exists(pythonw_exe):
+        log(f"使用 pythonw.exe: {pythonw_exe}")
+        # 指定工作目录
+        subprocess.Popen([pythonw_exe, main_py], cwd=CURRENT_DIR)
+        log("已执行启动命令（pythonw）")
+    else:
+        log("未找到 pythonw.exe，尝试使用 python.exe")
+        subprocess.Popen([sys.executable, main_py], cwd=CURRENT_DIR)
+        log("已执行启动命令（python）")
+
 if __name__ == "__main__":
     time.sleep(1)
     success = download_and_update()
     if success:
         show_message_box("更新完成", "Word格式处理工具已更新成功！\n点击确定后将自动启动。")
-        main_py = os.path.join(CURRENT_DIR, "main.py")
-        pythonw_exe = None
-        if sys.executable.endswith("python.exe"):
-            pythonw_exe = sys.executable.replace("python.exe", "pythonw.exe")
-        else:
-            pythonw_exe = shutil.which("pythonw")
-        if pythonw_exe and os.path.exists(pythonw_exe):
-            subprocess.Popen([pythonw_exe, main_py])
-        else:
-            subprocess.Popen([sys.executable, main_py])
+        restart_main()
     else:
         show_message_box("更新失败", "更新失败，请检查网络或手动下载更新。")
