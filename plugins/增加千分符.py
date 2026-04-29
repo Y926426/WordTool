@@ -23,21 +23,19 @@ def run(doc):
         return True
 
     def process_paragraph(para):
-        """在段落中查找数字并原地添加千分符（不改变段落格式）"""
-        # 获取段落文本（不含末尾回车）
+        """在段落中查找数字并原地添加千分符（修订模式）"""
         text = para.Range.Text.rstrip('\r')
         if not text:
             return 0
 
-        # 正则：匹配整数部分（至少一位），可选小数部分，避免匹配已有逗号的数字
-        # 同时使用环视确保前后不是数字或逗号
         pattern = r'(?<![0-9,])(\d+)(?:\.(\d+))?(?![0-9])'
         matches = list(re.finditer(pattern, text))
         if not matches:
             return 0
 
-        # 从后向前替换，避免影响后续位置偏移
-        replacements = []
+        # 从后向前替换，避免位置偏移
+        doc_range = para.Range
+        replacement_count = 0
         for m in reversed(matches):
             integer_part = m.group(1)
             decimal_part = m.group(2)
@@ -49,41 +47,31 @@ def run(doc):
                 num = int(integer_part)
                 if 1900 <= num <= 2099:
                     continue
-
-            # 长度小于4不添加
             if num_len < 4:
                 continue
 
-            # 生成带千分符的数字串
+            # 生成带千分符的数字
             try:
                 formatted_int = '{:,}'.format(int(integer_part))
             except:
                 continue
             new_digit = formatted_int if decimal_part is None else formatted_int + '.' + decimal_part
 
-            # 记录替换位置和内容（在原文本中的位置）
-            replacements.append((start, end, new_digit))
-
-        # 执行替换（基于原文本位置，需转换为 Range 中的字符偏移）
-        # 注意：段落范围是连续的，我们可以利用 Find 或直接操作 Range
-        # 由于我们已经知道在原文本中的偏移量，我们可以通过 para.Range.Characters 定位
-        # 但更稳定的方法是：逐个替换，每次替换后后续偏移变化 -> 从后向前替换
-        # 下面使用从后向前的方式，创建每个匹配的 Range 并替换文本
-        doc_range = para.Range
-        for start, end, new_digit in replacements:
-            # 创建匹配文本的 Range（相对于段落起始）
-            # 注意：段落文本可能包含段落标记，但我们的 text 不包含，而 Range 包含。
-            # 所以字符位置需要小心：para.Range 包含末尾回车，长度比 text 多1（如果末尾有回车）
-            # 简单处理：我们基于 para.Range 建立一个子范围
+            # 精确替换数字（保留格式，在修订模式下会生成修订标记）
             sub_range = doc_range.Duplicate
             sub_range.SetRange(doc_range.Start + start, doc_range.Start + end)
-            # 替换文本
             sub_range.Text = new_digit
+            replacement_count += 1
 
-        return len(replacements)
+        return replacement_count
 
     try:
-        # 获取一级标题样式名称
+        # 保存原始修订状态
+        original_revision_state = doc.TrackRevisions
+        # 强制开启修订模式
+        doc.TrackRevisions = True
+
+        # 获取一级标题样式
         try:
             h1_style = doc.Styles("标题 1").NameLocal
         except:
@@ -97,8 +85,8 @@ def run(doc):
         end_pos = doc.Sections(doc.Sections.Count - 1).Range.End
         target_range = doc.Range(start_pos, end_pos)
 
-        processed_count = 0
         modified_paragraphs = 0
+        total_replacements = 0
 
         for para in target_range.Paragraphs:
             if not should_process_paragraph(para, h1_style):
@@ -106,8 +94,12 @@ def run(doc):
             cnt = process_paragraph(para)
             if cnt > 0:
                 modified_paragraphs += 1
-                processed_count += cnt
+                total_replacements += cnt
 
-        return True, f"千分符添加完成，共修改 {modified_paragraphs} 个段落中的 {processed_count} 个数字。"
+        # 恢复原来的修订状态（如果希望保持开启，可以注释下一行）
+        doc.TrackRevisions = original_revision_state
+
+        return True, f"千分符添加完成（修订模式），共修改 {modified_paragraphs} 个段落中的 {total_replacements} 个数字。如需确认，请使用Word的“审阅”功能接受或拒绝修订。"
+
     except Exception as e:
         return False, f"处理失败: {e}"
