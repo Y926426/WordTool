@@ -97,7 +97,7 @@ if __name__ == "__main__":
     time.sleep(1)
     success = download_and_update()
     if success:
-        show_message_box("更新完成", "Word格式处理工具已更新成功！\n点击确定后将自动启动。")
+        show_message_box("更新完成", "Word格式处理工具已更新成功！")
         restart_main()
     else:
         show_message_box("更新失败", "更新失败，请检查网络或手动下载更新。")
