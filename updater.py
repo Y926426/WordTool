@@ -1,12 +1,12 @@
 import os
 import sys
 import shutil
-import urllib.request
 import zipfile
 import tempfile
 import subprocess
 import time
 import ctypes
+import requests
 
 REPO_URL = "https://github.com/Y926426/WordTool/archive/refs/heads/main.zip"
 CURRENT_DIR = os.path.dirname(os.path.abspath(sys.argv[0]))
@@ -16,8 +16,13 @@ def download_and_update():
     temp_zip = None
     extract_dir = None
     try:
+        # 禁用 SSL 验证（仅用于可信网络）
+        resp = requests.get(REPO_URL, stream=True, verify=False)
+        resp.raise_for_status()
         temp_zip = os.path.join(tempfile.gettempdir(), "wordtool_latest.zip")
-        urllib.request.urlretrieve(REPO_URL, temp_zip)
+        with open(temp_zip, 'wb') as f:
+            for chunk in resp.iter_content(chunk_size=8192):
+                f.write(chunk)
         print("✅ 下载完成，正在解压...")
         extract_dir = tempfile.mkdtemp()
         with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
@@ -58,7 +63,6 @@ def download_and_update():
             pass
 
 def show_message_box(title, message):
-    """显示 Windows 消息框，等待用户点击确定"""
     ctypes.windll.user32.MessageBoxW(0, message, title, 0)
 
 if __name__ == "__main__":
@@ -66,19 +70,15 @@ if __name__ == "__main__":
     success = download_and_update()
     if success:
         show_message_box("更新完成", "Word格式处理工具已更新成功！\n点击确定后将自动启动。")
-        # 重新启动主程序（使用 pythonw.exe 无控制台）
         main_py = os.path.join(CURRENT_DIR, "main.py")
-        # 查找 pythonw.exe
         pythonw_exe = None
         if sys.executable.endswith("python.exe"):
             pythonw_exe = sys.executable.replace("python.exe", "pythonw.exe")
         else:
-            # 在 PATH 中查找 pythonw
             pythonw_exe = shutil.which("pythonw")
         if pythonw_exe and os.path.exists(pythonw_exe):
             subprocess.Popen([pythonw_exe, main_py])
         else:
-            # 回退到 python.exe（会有控制台）
             subprocess.Popen([sys.executable, main_py])
     else:
         show_message_box("更新失败", "更新失败，请检查网络或手动下载更新。")
