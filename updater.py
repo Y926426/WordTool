@@ -70,34 +70,11 @@ def download_and_update():
 def show_message_box(title, message):
     ctypes.windll.user32.MessageBoxW(0, message, title, 0)
 
-def restart_main():
-    main_py = os.path.join(CURRENT_DIR, "main.py")
-    log(f"尝试启动主程序: {main_py}")
-    # 查找 pythonw.exe 的路径
-    pythonw_exe = None
-    # 从当前 Python 解释器路径推断
-    if sys.executable.endswith("python.exe"):
-        base = sys.executable[:-10]  # 去掉 python.exe
-        candidate = os.path.join(base, "pythonw.exe")
-        if os.path.exists(candidate):
-            pythonw_exe = candidate
-    if not pythonw_exe:
-        pythonw_exe = shutil.which("pythonw")
-    if pythonw_exe and os.path.exists(pythonw_exe):
-        log(f"使用 pythonw.exe: {pythonw_exe}")
-        # 指定工作目录
-        subprocess.Popen([pythonw_exe, main_py], cwd=CURRENT_DIR)
-        log("已执行启动命令（pythonw）")
-    else:
-        log("未找到 pythonw.exe，尝试使用 python.exe")
-        subprocess.Popen([sys.executable, main_py], cwd=CURRENT_DIR)
-        log("已执行启动命令（python）")
-
 if __name__ == "__main__":
     time.sleep(1)
     success = download_and_update()
     if success:
-        show_message_box("更新完成", "Word格式处理工具已更新成功！")
-        restart_main()
+        show_message_box("更新完成", "Word格式处理工具已更新成功！\n请手动重新启动工具。")
+        # 不再自动重启
     else:
         show_message_box("更新失败", "更新失败，请检查网络或手动下载更新。")
