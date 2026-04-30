@@ -12,15 +12,21 @@ import urllib.request
 import win32gui
 import re
 
-# ---------- 版本检测 ----------
+# ---------- 版本检测（绝对路径）----------
 REMOTE_VERSION_URL = "https://raw.githubusercontent.com/Y926426/WordTool/main/version.txt"
-LOCAL_VERSION_FILE = "version.txt"
-
 def get_local_version():
-    if os.path.exists(LOCAL_VERSION_FILE):
-        with open(LOCAL_VERSION_FILE, 'r', encoding='utf-8') as f:
-            return f.read().strip()
-    return "0.0.0"
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    version_file = os.path.join(script_dir, "version.txt")
+    try:
+        if os.path.exists(version_file):
+            with open(version_file, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                if content:
+                    return content
+        return "0.0.0"
+    except Exception as e:
+        print(f"读取版本文件失败: {e}")
+        return "0.0.0"
 
 def check_remote_version():
     try:
@@ -31,13 +37,15 @@ def check_remote_version():
 
 def load_plugins(plugins_dir="plugins"):
     plugins = []
-    if not os.path.exists(plugins_dir):
-        os.makedirs(plugins_dir)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    full_plugins_dir = os.path.join(script_dir, plugins_dir)
+    if not os.path.exists(full_plugins_dir):
+        os.makedirs(full_plugins_dir)
         return plugins
-    for fname in os.listdir(plugins_dir):
+    for fname in os.listdir(full_plugins_dir):
         if fname.endswith(".py") and fname != "__init__.py":
             mod_name = fname[:-3]
-            filepath = os.path.join(plugins_dir, fname)
+            filepath = os.path.join(full_plugins_dir, fname)
             try:
                 spec = importlib.util.spec_from_file_location(mod_name, filepath)
                 mod = importlib.util.module_from_spec(spec)
@@ -53,7 +61,6 @@ def load_plugins(plugins_dir="plugins"):
     return plugins
 
 def get_wps_window_title():
-    """获取WPS主窗口标题（以此获得当前文档名）"""
     def enum_callback(hwnd, titles):
         if win32gui.IsWindowVisible(hwnd) and win32gui.IsWindowEnabled(hwnd):
             class_name = win32gui.GetClassName(hwnd)
@@ -118,8 +125,14 @@ class WordToolApp:
         self.log = scrolledtext.ScrolledText(self.root, height=15, width=70)
         self.log.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
 
+        # 记录当前工作目录和版本文件状态（帮助诊断）
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        os.chdir(script_dir)
+        version_path = os.path.join(script_dir, "version.txt")
+        self.log_msg(f"脚本目录: {script_dir}")
+        self.log_msg(f"版本文件路径: {version_path}, 存在: {os.path.exists(version_path)}")
+        self.log_msg(f"读取到的版本号: {self.local_version}")
+
+        os.chdir(script_dir)  # 切换工作目录
 
         self.plugins = load_plugins()
         self.create_buttons()
@@ -220,19 +233,18 @@ class WordToolApp:
                                    "是否从 GitHub 获取最新版本？\n主程序将关闭并自动更新。"):
             return
         self.log_msg("📡 正在启动更新程序...")
-        updater_path = os.path.join(os.path.dirname(__file__), "updater.py")
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        updater_path = os.path.join(script_dir, "updater.py")
         if not os.path.exists(updater_path):
             self.log_msg("❌ 错误：找不到 updater.py 文件，请确保它与 main.py 在同一目录。")
             return
         try:
-            # 找到系统的 python.exe（而不是 pythonw.exe）
             python_exe = sys.executable
             if "pythonw.exe" in python_exe.lower():
                 base_dir = os.path.dirname(python_exe)
                 possible = os.path.join(base_dir, "python.exe")
                 if os.path.exists(possible):
                     python_exe = possible
-            # 使用 python.exe 启动 updater（会有控制台窗口）
             subprocess.Popen([python_exe, updater_path])
             self.root.quit()
         except Exception as e:
