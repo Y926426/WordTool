@@ -12,8 +12,10 @@ import urllib.request
 import win32gui
 import re
 
-# ---------- 版本检测（绝对路径）----------
+# ---------- 版本检测 ----------
 REMOTE_VERSION_URL = "https://raw.githubusercontent.com/Y926426/WordTool/main/version.txt"
+LOCAL_VERSION_FILE = "version.txt"
+
 def get_local_version():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     version_file = os.path.join(script_dir, "version.txt")
@@ -24,8 +26,7 @@ def get_local_version():
                 if content:
                     return content
         return "0.0.0"
-    except Exception as e:
-        print(f"读取版本文件失败: {e}")
+    except:
         return "0.0.0"
 
 def check_remote_version():
@@ -106,10 +107,8 @@ class WordToolApp:
         self.root.geometry("560x620")
         self.root.resizable(True, True)
 
-        # 获取本地版本号
         self.local_version = get_local_version()
 
-        # 状态栏（显示当前文档名 + 版本号）
         self.status_frame = tk.Frame(self.root)
         self.status_frame.pack(fill=tk.X, padx=10, pady=5)
 
@@ -125,14 +124,8 @@ class WordToolApp:
         self.log = scrolledtext.ScrolledText(self.root, height=15, width=70)
         self.log.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
 
-        # 记录当前工作目录和版本文件状态（帮助诊断）
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        version_path = os.path.join(script_dir, "version.txt")
-        self.log_msg(f"脚本目录: {script_dir}")
-        self.log_msg(f"版本文件路径: {version_path}, 存在: {os.path.exists(version_path)}")
-        self.log_msg(f"读取到的版本号: {self.local_version}")
-
-        os.chdir(script_dir)  # 切换工作目录
+        os.chdir(script_dir)
 
         self.plugins = load_plugins()
         self.create_buttons()
@@ -196,7 +189,20 @@ class WordToolApp:
             self.log_msg(f"❌ 打开文件失败: {e}")
             return None, None
 
-    def run_plugin(self, plugin_func):
+    def run_plugin(self, plugin_func, plugin_name):
+        """执行插件，支持无文档插件（白名单）"""
+        # 定义不需要打开文档的插件名称列表
+        no_doc_plugins = ["报告匹配助手"]  # 可按需增加其他插件名
+        if plugin_name in no_doc_plugins:
+            # 此类插件无需文档，直接调用，传入 None 或任意占位
+            try:
+                success, msg = plugin_func(None)  # 插件内部应忽略 doc 参数
+                self.log_msg(f"{'✅' if success else '❌'} {msg}")
+            except Exception as e:
+                self.log_msg(f"❌ 运行出错: {e}")
+            return
+
+        # 以下为需要文档的插件原有逻辑
         def task():
             pythoncom.CoInitialize()
             app = None
@@ -233,8 +239,7 @@ class WordToolApp:
                                    "是否从 GitHub 获取最新版本？\n主程序将关闭并自动更新。"):
             return
         self.log_msg("📡 正在启动更新程序...")
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        updater_path = os.path.join(script_dir, "updater.py")
+        updater_path = os.path.join(os.path.dirname(__file__), "updater.py")
         if not os.path.exists(updater_path):
             self.log_msg("❌ 错误：找不到 updater.py 文件，请确保它与 main.py 在同一目录。")
             return
