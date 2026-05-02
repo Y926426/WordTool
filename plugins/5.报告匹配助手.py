@@ -4,13 +4,12 @@ import webbrowser
 
 NAME = "报告匹配助手"
 
-def run(doc):
+def run(doc):   # doc 参数可能为 None（因为白名单调用）
     # 工具根目录（main.py 所在目录）
     tool_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     html_path = os.path.join(tool_dir, "report_match.html")
     
     if os.path.exists(html_path):
-        # 使用默认浏览器打开
         webbrowser.open(f"file:///{os.path.abspath(html_path)}")
         return True, "已打开报告匹配助手（浏览器）"
     else:
