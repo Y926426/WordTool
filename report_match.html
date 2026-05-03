@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>报告匹配助手</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { background: #f0f4f9; font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 24px; }
+        .container { max-width: 1600px; margin: 0 auto; background: white; border-radius: 32px; box-shadow: 0 12px 30px rgba(0,0,0,0.08); overflow: hidden; }
+        .header { background: #1e4663; color: white; padding: 24px 32px; }
+        .header h1 { margin: 0; font-size: 1.8rem; }
+        .content { padding: 28px 32px; }
+        .row-2 { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+        .row-2 > div { flex: 1; min-width: 200px; }
+        label { font-weight: 600; display: block; margin-bottom: 8px; color: #1e3b4f; }
+        select, button {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #cbd5e1;
+            border-radius: 16px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: 0.2s;
+        }
+        select:focus { outline: none; border-color: #2c7da0; box-shadow: 0 0 0 3px rgba(44,125,160,0.2); }
+        button {
+            background: #1e6f3f;
+            color: white;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            width: auto;
+            min-width: 180px;
+        }
+        button:hover { background: #0f5a34; transform: translateY(-2px); }
+        .flex-row { display: flex; gap: 24px; margin-bottom: 24px; }
+        .left-panel, .right-panel {
+            flex: 1;
+            background: #f8fafc;
+            border-radius: 20px;
+            border: 1px solid #e2edf2;
+            padding: 16px;
+            overflow-y: auto;
+            max-height: 550px;
+        }
+        .left-panel h4, .right-panel h4 { margin: 0 0 12px 0; color: #1e4663; }
+        .clause-group {
+            margin-bottom: 20px;
+            border-left: 2px solid #cbd5e1;
+            padding-left: 12px;
+        }
+        .group-title {
+            font-weight: bold;
+            font-size: 1rem;
+            color: #1e4663;
+            margin: 8px 0 8px 0;
+            background: #eef3fa;
+            padding: 4px 8px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+        .clause-item {
+            margin: 8px 0 8px 16px;
+        }
+        .clause-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .clause-header input { margin-top: 3px; }
+        .clause-header label { font-weight: normal; color: #2c3e50; cursor: pointer; }
+        .right-panel .report-for-clause {
+            margin-bottom: 20px;
+            border-bottom: 1px dashed #cbd5e1;
+            padding-bottom: 12px;
+        }
+        .right-panel .clause-ref { font-weight: 600; margin-bottom: 8px; color: #2c7da0; background: #eef3fa; padding: 4px 8px; border-radius: 12px; }
+        .report-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 18px;
+            padding: 2px 10px;
+            margin: 4px 8px 4px 0;
+            font-size: 0.75rem;
+        }
+        .report-item input { width: 14px; height: 14px; margin: 0; }
+        .report-item label { margin: 0; cursor: pointer; }
+        .result-area { margin-top: 32px; border-top: 2px solid #e4edf5; padding-top: 24px; }
+        .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+        .result-header h3 { margin: 0; font-size: 1.2rem; color: #1e4663; }
+        .copy-btn { background: #2c7da0; border: none; padding: 6px 16px; border-radius: 40px; font-size: 0.85rem; color: white; cursor: pointer; }
+        .copy-btn:hover { background: #1f5e7a; }
+        .result-table { overflow-x: auto; border-radius: 20px; border: 1px solid #e2edf2; background: white; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        th { background: #eef3fa; padding: 12px 8px; text-align: center; font-weight: 600; color: #1e4a6e; border-bottom: 1px solid #cbd5e1; }
+        td { padding: 10px 8px; text-align: left; border-bottom: 1px solid #e9edf2; vertical-align: top; }
+        .button-bar { display: flex; gap: 12px; margin-bottom: 16px; justify-content: center; }
+        .clause-copy-area {
+            margin-top: 20px;
+            padding: 16px;
+            background: #f0f7ee;
+            border-radius: 20px;
+            border: 1px solid #cbd5e1;
+        }
+        .clause-copy-area h4 {
+            margin: 0 0 8px 0;
+            font-size: 1rem;
+            color: #1e4663;
+        }
+        .clause-copy-box {
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .copy-clause-btn {
+            background: #2c7da0;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .copy-clause-btn:hover { background: #1f5e7a; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>📋 报告匹配助手 · 完整功能版</h1>
+    </div>
+    <div class="content">
+        <div class="row-2">
+            <div><label>📌 科目类型</label><select id="projectType"></select></div>
+            <div><label>📜 协议框架</label><select id="framework"><option value="框架1">框架1</option><option value="框架2">框架2</option></select></div>
+        </div>
+        <div class="button-bar">
+            <button id="selectAllBtn">✅ 全选所有条款</button>
+            <button id="clearAllBtn">🗑️ 清除所有条款</button>
+        </div>
+        <div class="flex-row">
+            <div class="left-panel">
+                <h4>📌 协议条款（勾选后右侧显示可选报告）</h4>
+                <div id="clauseTree"></div>
+            </div>
+            <div class="right-panel">
+                <h4>📄 关联报告（可独立勾选）</h4>
+                <div id="reportPanel"></div>
+            </div>
+        </div>
+        <div class="result-area">
+            <div class="result-header">
+                <h3>📌 匹配结果（表格）</h3>
+                <button id="copyTableBtn" class="copy-btn">📋 复制表格</button>
+            </div>
+            <div id="tableContainer" class="result-table"></div>
+            <div class="clause-copy-area">
+                <h4>📋 最终协议条款</h4>
+                <div id="clauseCopyBox" class="clause-copy-box"></div>
+                <button id="copyClauseBtn" class="copy-clause-btn">📋 复制协议条款</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ================= 完整协议数据（10个科目，框架1/框架2） =================
+    const PROTOCOLS = {
+        "全面金融解决方案": {
+            "框架1": [
+                { level1: "（一）宏观信息资讯", clauses: [
+                    "1.金融法规资讯：为甲方提供日常生产经营过程中相关金融法律法规资讯；",
+                    "2.宏观经济、产业、行业资讯：根据甲方需求定期或不定期向甲方提供宏观经济、产业发展的最新动态，或特定区域、特定行业或产业的专项研究资讯服务；",
+                    "3.金融市场资讯：为甲方提供有关外汇市场、资金拆借市场或国内外债券市场、股票市场、期货市场的最新市场信息；",
+                    "4.金融产品资讯：乙方可根据甲方的经营情况、财务状况及需求，或根据资本市场、货币市场、外汇市场等金融市场走势，对各类金融产品和业务的监管政策、产品特点、交易结构进行比较分析；"
+                ] },
+                { level1: "（二）全面金融解决方案", clauses: [
+                    "5.经营状况分析：乙方根据甲方需求，对甲方所属行业状况、产业状况进行分析诊断，如行业发展规划、头部企业对标分析、企业自身SWOT分析等；",
+                    "6.财务状况分析：乙方根据甲方需求，对甲方的财务经营状况进行分析诊断，如资产结构分析、偿债能力分析、成本费用分析、利润情况分析；",
+                    "7.投融资方案设计：乙方将根据甲方需求，为甲方的风险偏好、债务结构、筹资用途、投资标的等提供规划、咨询和建议；",
+                    "8.尽职调查：根据投融资方案，乙方协助甲方开展尽职调查和风险评估；",
+                    "9.方案推进：根据甲方需求，协助甲方协调监管部门、中介机构、其他参与机构，组织开展谈判、协议签署，协助推进服务方案实施；",
+                    "10.方案落地：根据乙方设计的投融资方案，为甲方成功落地投融资项目；"
+                ] },
+                { level1: "（三）绿色金融服务", clauses: [
+                    "11.绿色信息资讯：乙方可根据甲方对绿色金融政策法规、绿色投融资产品信息的需求，提供绿色金融市场周度研究或ESG投资月度跟踪、绿色金融深度研究、绿色信贷深度研究、绿色债券深度研究、碳排放权交易市场深度研究、碳排放权市场课题研究等信息咨询；",
+                    "12.绿色建筑项目咨询认证：乙方根据甲方对绿色建筑设计、成本估算、施工与运营指导等需求，提供咨询或联动第三方机构为企业提供绿色建筑标识认证服务；",
+                    "13.绿色产业项目咨询申报：乙方根据国家发展改革委员会制定的《绿色产业指导目录》划定的产业边界及设定的相关行业技术标准，各地方、各部门在金融、价格、财税、投资等方面制定的以《目录》为基础的细化目录和子目录中的要求，为甲方符合《绿色产业指导目录》等政策文件的绿色产业项目提供咨询或申报服务；",
+                    "14.绿色融资产品方案设计：乙方根据甲方绿色融资需求，按照监管、金融机构对不同绿色产品的认定要求，为甲方或其项目提供绿色主体识别或融资产品方案设计；"
+                ] }
+            ],
+            "框架2": [
+                { level1: "（一）信息咨询服务", clauses: [
+                    "1.金融法规政策咨询：为甲方提供日常生产经营过程中相关金融法律法规、政策咨询和解读服务，帮助甲方正确理解与运用；",
+                    "2.宏观经济、产业、行业信息咨询：根据甲方需求定期或不定期向甲方提供宏观经济、产业发展的最新动态以及相关行业信息；",
+                    "3.金融信息咨询：为甲方提供有关外汇市场、股票市场、期货市场的最新市场信息，解答有关金融市场的专业知识；",
+                    "4.金融业务和产品的咨询服务：乙方可根据甲方的经营情况、财务状况及实际投融资需求，结合资本市场、货币市场等金融市场走势，对各类金融产品和业务的监管政策、服务方式、服务流程、产品特点、交易结构进行比较分析，为甲方提供建议、咨询，推荐适合甲方业务需求的金融产品和服务。"
+                ] },
+                { level1: "（二）财务分析诊断服务", clauses: [
+                    "1.财务状况分析：乙方将根据甲方需求，对甲方的财务经营状况进行分析诊断，包括利润情况分析、成本费用分析、资产结构分析、偿债能力分析、盈利能力分析；",
+                    "2.投融资建议：乙方将根据甲方需求，为甲方的资本运作、筹资管理、投资管理、营运资金管理、成本管理提供规划、咨询和建议，并有针对性的提出投融资意见建议；",
+                    "3.融资方案设计和工具推荐服务（1）融资方案设计：乙方根据甲方的经营情况、财务状况及实际融资需求，综合分析、比较各类金融产品和服务的准入条件、成本、利弊，设计针对客户特点的融资方案和融资策略；（2）可行性分析：乙方根据甲方需求，协助甲方进行项目论证和可行性分析、协助开展尽职调查和风险评估；",
+                    "4.投资方案设计和工具推荐服务 乙方利用自有既有的客户、资金、信息优势，根据甲方需求和业务发展战略协助设计短期或中长期投资方案；（1）短期投资计划设计：协助甲方制订短期投资计划，综合利用各种存款、票据、基金、理财产品、外汇及衍生品等金融产品帮助甲方有效利用短期资金创造效益；（2）中长期投资计划设计：协助甲方制订中长期投资计划，甲方提供债权、股权和固定资产投资产品的风险和收益分析；",
+                    "5.推动和协调具体服务方案实施 根据甲方需求，协助甲方协调监管部门、中介机构、其他参与机构，组织开展谈判、协议签署，协助推进服务方案实施落地；"
+                ] }
+            ]
+        },
+        "资产管理合作协议": {
+            "框架1": [
+                { level1: "（一）宏观信息资讯", clauses: [
+                    "1.金融法规资讯：为甲方提供日常生产经营过程中相关金融法律法规资讯；",
+                    "2.宏观经济、产业、行业资讯：根据甲方需求定期或不定期向甲方提供宏观经济、产业发展的最新动态，或特定区域、特定行业或产业的专项研究资讯服务；",
+                    "3.金融市场资讯：为甲方提供有关外汇市场、资金拆借市场和国内外债券市场、股票市场、期货市场的最新市场信息；",
+                    "4.金融产品资讯：乙方可根据甲方的经营情况、财务状况及实际需求，结合资本市场、货币市场、外汇市场等金融市场走势，对各类金融产品和业务的监管政策、产品特点、交易结构进行比较分析。"
+                ] },
+                { level1: "（二）资产管理服务", clauses: [
+                    "5.资产保值增值（1）乙方对甲方进行风险评估，并根据甲方经营、财务状况、资产保值增值目标、风险承受程度等确定合适的资产管理期限、金额、具体投资类别；（2）乙方根据甲方需要，为甲方设计资产管理服务方案，如管理方式、投资范围、投资策略、管理机构筛选标准等；（3）为甲方推荐并协助甲方选择相关投资管理机构，协助甲方制订投资管理机构的遴选和评价标准，并协助与相关机构讨论、沟通、统筹；（4）根据市场情况，协助甲方制订具体的业绩评价标准、进行收益预测,协助甲方制订投资估值等；（5）为甲方拟投项目后期运营管理和战略规划提供管理建议；（6）根据项目工作进展和需要提供其他咨询意见、或出席必要的谈判或会议；（7）通过乙方协助制定的方案，成功为甲方实现资产增值；",
+                    "6.资产交易撮合（1）根据甲方需求，乙方对拟撮合的资金资产进行方案设计；（2）根据实际需要，乙方为甲方推荐并协助甲方选择、协调中介机构开展工作，如协调中介机构关系、推进工作进程、提出建议、召开协调会等；（3）以方案为基础，乙方利用自身资源、渠道、信息等，发挥撮合职能，为甲方寻找、选择合适的资金（出资人）或资产（融资人）；（4）根据项目工作进展和需要提供其他咨询意见、或出席必要的谈判或会议。（5）通过乙方设计方案，成功为甲方实现资产交易撮合项目落地"
+                ] }
+            ],
+            "框架2": [
+                { level1: "补充条款", clauses: [
+                    "1.根据甲方需要，乙方在资产管理过程提供各类专业咨询服务，包括产品介绍、行业情况、宏观经济、相关政策规定；",
+                    "2.根据甲方需要，为甲方设计具体的资产管理服务方案，包括资产管理方式、投资范围、投资策略、管理机构筛选标准等；",
+                    "3.对甲方进行投资风险评估，并根据甲方经营、财务状况、风险承受程度等确定合适的资产管理期限、金额、具体投资类别；",
+                    "4.为甲方推荐并协助甲方选择相关投资管理机构，协助甲方制订投资管理机构的遴选和评价标准；",
+                    "5.协助甲方遴选中介机构，并负责与相关机构进行讨论、沟通、统筹、协调等；",
+                    "6.根据市场情况，协助甲方制订具体的业绩评价标准、进行收益预测,协助甲方制订投资估值等；"
+                ] }
+            ]
+        },
+        "项目融资合作协议": {
+            "框架1": [
+                { level1: "（一）宏观信息资讯", clauses: [
+                    "1.金融法规资讯：为甲方提供日常生产经营过程中相关金融法律法规资讯；",
+                    "2.宏观经济、产业、行业资讯：根据甲方需求定期或不定期向甲方提供宏观经济、产业发展的最新动态，或特定区域、特定行业或产业的专项研究资讯服务；",
+                    "3.金融市场资讯：为甲方提供有关外汇市场、资金拆借市场和国内外债券市场、股票市场、期货市场的最新市场信息；",
+                    "4.金融产品资讯：乙方可根据甲方的经营情况、财务状况及实际需求，结合资本市场、货币市场、外汇市场等金融市场走势，对各类金融产品和业务的监管政策、产品特点、交易结构进行比较分析。"
+                ] },
+                { level1: "（二）项目融资方案设计", clauses: [
+                    "5.乙方根据甲方经营情况、财务状况和资金需求，为甲方设计项目融资服务方案，如总体方案、交易结构、资金募集方式等；",
+                    "6.乙方根据项目建设内容、产品规划目标、主题工艺技术方案等，对项目生产建设进行整体分析；结合生产建设内容，提供项目能源与环保评价，并分析相关风险；",
+                    "7.乙方协助甲方评估按照有关规定需取得的审批、核准或备案等手续情况、项目承建方资质水平，环境风险情况等；",
+                    "8.乙方协助甲方推荐具备相关资质的独立中介机构，为拟融资项目提供法律、税务、保险、技术、环保和监理等方面的专业意见或服务；",
+                    "9.乙方以偿债能力分析为核心，从项目合规性、项目技术和财务可行性、项目产品市场、项目融资方案、还款来源可靠性、担保、保险等角度进行风险评价，并充分考虑政策变化、市场波动等不确定因素对项目的影响，协助甲方审慎预测项目的未来收益和现金流；"
+                ] },
+                { level1: "（三）项目融资方案推进", clauses: [
+                    "10.乙方协助甲方寻找、选择、确定合适的出资方，为甲方进行融资推介、协助甲方与潜在出资方进行沟通、谈判；",
+                    "11.根据与前在出资方谈判情况，乙方借助甲方起草项目融资协议，内容可包括金额、期限、利率、用途、支付等要素或有关细节；",
+                    "12.乙方协助甲方与项目融资出资方签订项目融资协议；"
+                ] },
+                { level1: "（四）项目融资存续期管理", clauses: [
+                    "13.在项目融资存续期内，乙方协助甲方对项目建设资金进行管理；",
+                    "14.乙方协助甲方建立项目融资风险预警体系，内容可包括项目的建设和运营情况、宏观经济变化和市场波动情况、贷款担保的变动情况等；"
+                ] }
+            ],
+            "框架2": [
+                { level1: "专项咨询", clauses: [
+                    "1.根据甲方需要，乙方提供项目融资过程中的专项咨询服务，包括产品介绍、行业情况、宏观经济、相关政策规定等；",
+                    "2.根据甲方经营、资金需求、财务状况等实际情况，为甲方设计项目融资服务方案，包括总体方案、交易结构、资金募集方式等；",
+                    "3.根据实际需要，乙方为甲方推荐并协助甲方选择相关中介机构并协调中介机构开展工作，包含协调中介机构关系、推进工作进程、提出建议、召开协调会等；",
+                    "4.协助甲方与有关方就项目文件的主要条款进行拟定及谈判；",
+                    "5.独立或与其他中介服务机构配合，协助甲方与相关政府部门进行沟通和协调；",
+                    "6.根据甲方项目情况编写项目调查报告；",
+                    "7.根据甲方项目情况编写项目进展情况备忘录；",
+                    "8.根据甲方项目融资条件编写融资条件清单；",
+                    "9.结合甲方项目实际情况，出具项目风险管理建议书；",
+                    "10.乙方独立或配合第三方机构设计项目现金流量及有关财务模型；",
+                    "11.协助甲方寻找项目资金来源，评估各资金方融资条件，协助甲方遴选资金方；",
+                    "12.单独或配合第三方机构做好融资文件的起草、修改、并提出相关建议，协助甲方制定还款方案；",
+                    "13.根据项目融资工作的进展和需要提供其他咨询意见、或出席必要的谈判或会议；"
+                ] }
+            ]
+        },
+        "债务优化": {
+            "框架1": [
+                { level1: "（一）宏观信息资讯", clauses: [
+                    "1.金融法规资讯：为甲方提供日常生产经营过程中相关金融法律法规资讯；",
+                    "2.宏观经济、产业、行业资讯：根据甲方需求定期或不定期向甲方提供宏观经济、产业发展的最新动态，或特定区域、特定行业或产业的专项研究资讯服务；",
+                    "3.金融市场资讯：为甲方提供有关外汇市场、资金拆借市场或国内外债券市场、股票市场、期货市场的最新市场信息；",
+                    "4.金融产品资讯：乙方可根据甲方的经营情况、财务状况及实际需求，或根据资本市场、货币市场、外汇市场等金融市场走势，对各类金融产品和业务的监管政策、产品特点、交易结构进行比较分析；",
+                    "5.绿色信息资讯：乙方可根据甲方对绿色金融政策法规、绿色投融资产品信息的需求，提供绿色金融市场周度研究或ESG投资月度跟踪、绿色金融深度研究、绿色信贷深度研究、绿色债券深度研究、碳排放权交易市场深度研究、碳排放权市场课题研究等信息咨询；"
+                ] },
+                { level1: "（二）债务优化方案设计及推进", clauses: [
+                    "6.根据甲方需要，为甲方提供市场主要债务优化工具或对比分析典型案例；",
+                    "7.对甲方的债务状况进行综合诊断，通过收集、整理、分析甲方的财务数据、债务事项、经营情况等，分析甲方在偿债能力、债务结构或债务期限等方面可能存在的问题；",
+                    "8.在甲方认可调查分析结果的基础上，根据甲方运营情况、资金需求、财务状况及未来现金流，为甲方设计融资再安排（如：债务重组、债务展期、利率调整等）优化方案；",
+                    "9.在甲方认可融资再安排的基础上，乙方可利用自身资源、渠道、信息，根据甲方需求为甲方寻找、选择、推荐合适的出资方/投资机构，为甲方进行融资推介、协助甲方与潜在出资方/投资机构进行沟通；",
+                    "10.协助甲方根据出资方/投资者的要求完成对甲方的尽职调查、财务分析、谈判、签约等，并协助向投资者进行信息披露；",
+                    "11.根据需要提供其他咨询意见、或出席必要的谈判或会议；",
+                    "12.根据债务优化方案，提供资金监管、债务催缴清收等服务；",
+                    "13.通过乙方设计方案，成功为甲方实现债务优化项目落地；"
+                ] },
+                { level1: "（三）特殊资产处置方案设计及推进", clauses: [
+                    "14.根据甲方需要，为甲方提供市场主要特殊资产出售或投资对比分析或典型案例；",
+                    "15.特殊资产（如：不良债权、抵债资产、涉诉资产等）出售：（1）协助甲方对其持有的特殊资产开展尽职调查，综合分析评估潜在的处置方式和可能性；（2）协助甲方设计特殊资产处置交易结构；（3）协助甲方寻找、选择、推荐合适的特殊资产投资机构并根据需要协助提供谈判、签约等服务；",
+                    "16.特殊资产（如：不良债权、抵债资产、涉诉资产等）投资：（1）分析甲方投资偏好及风险承受能力；（2）依据对甲方投资偏好及风险承受能力分析结构，协助甲方寻找潜在特殊资产投资标的；（3）协助甲方对潜在投资标的进行尽职调查和相关的谈判、签约；",
+                    "17.根据特殊资产处置方案，提供资金监管、债务催缴清收等服务；",
+                    "18.乙方协助甲方就特殊资产处置提起仲裁或诉讼；",
+                    "19.乙方协助甲方就特殊资产涉及的押品进行处置：",
+                    "20.通过乙方设计方案，成功为甲方实现特殊资产处置项目落地；"
+                ] }
+            ],
+            "框架2": []
+        },
+        "权益业务合作协议": {
+            "框架1": [
+                { level1: "（一）宏观信息资讯", clauses: [
+                    "1.金融法规资讯：为甲方提供日常生产经营过程中相关金融法律法规资讯；",
+                    "2.宏观经济、产业、行业资讯：根据甲方需求定期或不定期向甲方提供宏观经济、产业发展的最新动态，或特定区域、特定行业或产业的专项研究资讯服务；",
+                    "3.金融市场资讯：为甲方提供有关外汇市场、资金拆借市场和国内外债券市场、股票市场、期货市场的最新市场信息；",
+                    "4.金融产品资讯：乙方可根据甲方的经营情况、财务状况及实际需求，结合资本市场、货币市场、外汇市场等金融市场走势，对各类金融产品和业务的监管政策、产品特点、交易结构进行比较分析。",
+                    "5.根据甲方需要，乙方提供权益类产品（如：境内外IPO及再融资、股东增持、引入战略投资者、可认股安排权、员工持股计划等）资讯，如金融法规政策、宏观经济情况、金融市场及产品信息等；"
+                ] },
+                { level1: "（二）权益投资方案设计与推进", clauses: [
+                    "6.根据甲方需要，乙方为甲方提供市场主流权益投资工具或典型案例；",
+                    "7.根据甲方经营、资金需求、财务状况等实际情况对甲方进行权益投资需求前期辅导，并为甲方设计权益投资方案和计划，如产品选择、推进步骤、财务诊断、交易结构等；",
+                    "8.结合投资方案，乙方协助甲方起草权益投资相关协议文本；",
+                    "9.乙方利用自身资源、渠道、信息等，为甲方寻找、选择合适的权益融资方，并协助甲方进行项目路演或尽职调查；",
+                    "10.根据实际需要，乙方为甲方推荐并协助甲方选择、协调中介机构开展工作，如协调中介机构关系、推进工作进程、提出建议、召开协调会等；",
+                    "11.根据项目工作进展和需要提供其他咨询意见、或出席必要的谈判或会议；",
+                    "12.通过乙方设计方案，成功为甲方实现权益投资项目落地；",
+                    "13.乙方协助甲方收集被投企业的经营数据、财务数据、评级等信息；",
+                    "14.协助甲方提升被投企业价值，协助甲方制定IPO上市、转让老股或并购重组方案，并协助推动甲方持有权益份额退出。"
+                ] },
+                { level1: "（三）权益融资方案设计与推进", clauses: [
+                    "15.根据甲方需要，乙方为甲方提供市场主流权益融资工具或典型案例；",
+                    "16.根据甲方经营、资金需求、财务状况等实际情况对甲方进行境内外IPO及再融资、股东增持、引入战略投资者、可认股安排权、员工持股计划、期权融资、债转股等权益融资需求前期辅导，并为甲方设计权益融资方案和计划，如产品选择、推进步骤、财务诊断、交易结构、资金募集等；",
+                    "17.结合融资方案，乙方协助甲方起草权益融资相关协议文本",
+                    "18.乙方可利用自身资源、渠道、信息等，为甲方寻找、选择合适的权益投资出资方/投资机构，为甲方进行融资路演、协助甲方与潜在出资方/投资机构进行沟通；",
+                    "19.协助甲方根据出资方/投资者的要求完成对甲方的尽职调查、财务分析、谈判、签约等，并协助向投资机构进行信息披露；",
+                    "20.根据需要提供其他咨询意见、或出席必要的谈判或会议；",
+                    "21.通过乙方设计方案，成功为甲方实现权益融资项目落地；"
+                ] }
+            ],
+            "框架2": []
+        },
+        "债券发行合作协议": {
+            "框架1": [
+                { level1: "（一）宏观信息资讯", clauses: [
+                    "1.金融法规资讯：为甲方提供日常生产经营过程中相关金融法律法规资讯；",
+                    "2.宏观经济、产业、行业资讯：根据甲方需求定期或不定期向甲方提供宏观经济、产业发展的最新动态，或特定区域、特定行业或产业的专项研究资讯服务；",
+                    "3.金融市场资讯：为甲方提供有关外汇市场、资金拆借市场和国内外债券市场、股票市场、期货市场的最新市场信息；",
+                    "4.金融产品资讯：乙方可根据甲方的经营情况、财务状况及实际需求，结合资本市场、货币市场、外汇市场等金融市场走势，对各类金融产品和业务的监管政策、产品特点、交易结构进行比较分析；",
+                    "5.根据甲方需要，乙方提供债券（或资产证券化）产品资讯，如金融法规政策、宏观经济情况、金融市场及产品信息等；"
+                ] },
+                { level1: "（二）债券发行方案设计及推进", clauses: [
+                    "6.根据甲方需要，乙方为甲方提供市场主流债务融资工具或典型案例；",
+                    "7.对甲方的经营情况、财务状况进行综合诊断，通过收集、整理、分析甲方的财务数据、经营情况、发展规划等信息，为甲方的资产结构、资金流动性管理、债务水平等做出分析；",
+                    "8.根据对甲方资产结构、资金流动性管理、债务水平分析结论，并结合甲方业务发展战略，乙方协助甲方制定、设计短期或中长期债券发行（或资产证券化）方案和计划；",
+                    "9.对甲方进行债券（或资产证券化）发行前期辅导、开展尽职调查，提供债券发行咨询及建议，如债券品种选择、期限结构搭配、财务诊断、行业分析、信用增级措施设立；",
+                    "10.协助甲方制作债券（或资产证券化）发行项目时间及工作进度安排计划；",
+                    "11.协助甲方完成债券（或资产证券化）发行前准备，如协助甲方制定公司信息披露事务管理制度，设计偿债计划，进行登记结算、簿记建档等相关账户开立、会员入会（如银行间市场交易商协会会员等）及债券登记、托管等服务；",
+                    "12.协助甲方遴选债券（或资产证券化）注册发行工作中涉及的中介机构并配合与相关机构进行讨论、沟通、统筹、协调；",
+                    "13.协助甲方开展具体债券（或资产证券化）的注册、申报工作，协助起草、制作全套注册、申报材料，协助甲方与主管机构或其他监管机构进行沟通协调；",
+                    "14.协助甲方确定最终债券（或资产证券化）发行方案、选择发行窗口，安排定价程序；",
+                    "15.为甲方债券（或资产证券化）发行开展宣传、推介、路演、询价等工作；",
+                    "16.通过乙方设计的方案，成功为甲方注册发行债券（或资产证券化）；",
+                    "17.协助甲方开展债券（或资产证券化）存续期的信息披露工作；"
+                ] }
+            ],
+            "框架2": [
+                { level1: "框架2条款", clauses: [
+                    "1.根据甲方需要，乙方提供债券产品和业务政策的咨询服务，包括产品介绍、行业情况、宏观经济、相关政策规定等；",
+                    "2.根据甲方需求和业务发展战略，协助甲方制定、设计短期或中长期债券发行方案和计划；",
+                    "3.针对资产证券化业务，协助甲方设计资产证券化发行方案，包括产品结构设计、产品要素制定；",
+                    "4.对甲方进行前期辅导、开展尽职调查，有针对性地提供债券发行咨询及建议，包括债券品种选择、期限结构搭配、财务诊断、行业分析、信用增级措施设立；",
+                    "5.协助甲方制作债券发行项目时间表及工作进度安排计划；",
+                    "6.协助甲方完成债券发行前准备，包括协助甲方制定公司信息披露事务管理制度，设计切实可行的偿债计划，完成登记结算、簿记建档等相关账户开立、会员入会（如银行间市场交易商协会会员等）及债券登记、托管等服务；",
+                    "7.协助甲方遴选债券注册发行工作中涉及的中介机构并负责与相关机构进行讨论、沟通、统筹、协调；",
+                    "8.协助甲方完成具体债务融资工具的注册、申报工作，协助起草、制作全套注册、申报材料，协助甲方与主管机构或其他监管机构进行沟通协调；",
+                    "9.协助甲方确定最终债券发行方案、选择发行窗口，安排定价程序；",
+                    "10.为甲方债券发行开展宣传、推介、路演、询价等工作；",
+                    "11.协助甲方完成债券存续期的信息披露工作；"
+                ] }
+            ]
+        },
+        "基金业务合作协议": {
+            "框架1": [
+                { level1: "（一）宏观信息资讯", clauses: [
+                    "1.金融法规资讯：为甲方提供日常生产经营过程中相关金融法律法规资讯；",
+                    "2.宏观经济、产业、行业资讯：根据甲方需求定期或不定期向甲方提供宏观经济、产业发展的最新动态，或特定区域、特定行业或产业的专项研究资讯服务；",
+                    "3.金融市场资讯：为甲方提供有关外汇市场、资金拆借市场和国内外债券市场、股票市场、期货市场的最新市场信息；",
+                    "4.金融产品资讯：乙方可根据甲方的经营情况、财务状况及实际需求，结合资本市场、货币市场、外汇市场等金融市场走势，对各类金融产品和业务的监管政策、产品特点、交易结构进行比较分析；"
+                ] },
+                { level1: "（二）基金设立", clauses: [
+                    "5.根据甲方需要，乙方协助甲方制定基金设立方案，如基金基本要素、组织架构、拟投资范围等；",
+                    "6.乙方协助甲方对基金相关文件进行完善，协助甲方办理基金的工商注册及银行开户等工作；",
+                    "7.乙方协助甲方与主管部门及监管机构就基金登记备案、运营管理等进行沟通和协调；",
+                    "8.在甲方基金募集过程中，乙方可向甲方推荐基金意向出资人或在合法合规前提下协助进行资金募集。",
+                    "9.乙方成功协助甲方完成基金设立或募资工作；"
+                ] },
+                { level1: "（三）基金投资", clauses: [
+                    "10.根据基金的投资需要，乙方为甲方发掘、储备、初筛并推荐符合条件的目标资产或客户；",
+                    "11.乙方协助甲方对基金拟投标的开展客户营销或关系维护工作；",
+                    "12.乙方协助甲方对基金拟投标的及其关联方等进行尽职调查和谈判相关工作；",
+                    "13.乙方协助甲方定期回顾投资业绩，并协助提出下一阶段的投资建议；"
+                ] },
+                { level1: "（四）基金管理及退出", clauses: [
+                    "14.在甲方基金管理工作中，乙方协助甲方维护投资者关系；",
+                    "15.针对需要以IPO上市、转让老股或并购重组等方式退出的，乙方协助甲方制定相关退出方案。"
+                ] }
+            ],
+            "框架2": [
+                { level1: "框架2条款", clauses: [
+                    "1.根据甲方需要，乙方提供各种形式私募基金咨询服务，包括产品介绍、行业情况、相关政策规定；",
+                    "2.根据甲方经营、资金需求、财务状况等实际情况，为甲方设计个性化的基金融资方案并编制融资计划书，包括交易框架、推进步骤、交易结构、资金募集方式等；",
+                    "3.乙方可利用自身资源、渠道、信息等，为甲方寻找、选择合适的基金投资者，为甲方进行融资推介、协助甲方与潜在投资者进行沟通；",
+                    "4.根据实际需要，乙方可为甲方推荐并协助甲方选择私募基金管理机构并协调中介机构开展工作，包含协调中介机构关系、推进工作进程、提出建议、召开协调会等；",
+                    "5.根据基金投资者的要求，推荐潜在投资标的、协助甲方完成对甲方或甲方项目的尽职调查、财务分析等，并协助甲方向投资者进行信息披露；",
+                    "6.协助甲方起草相关文件，协助甲方进行谈判、签约；",
+                    "7.协助甲方提供投后管理、推荐基金托管机构等工作；",
+                    "8.为甲方提供配套的贷款、债券承销、结算等其它综合金融服务（需在财务顾问费之外另行收费）；"
+                ] }
+            ]
+        },
+        "并购与重组合作协议": {
+            "框架1": [
+                { level1: "（一）宏观信息资讯", clauses: [
+                    "1.金融法规资讯：为甲方提供日常生产经营过程中相关金融法律法规资讯；",
+                    "2.宏观经济、产业、行业资讯：根据甲方需求定期或不定期向甲方提供宏观经济、产业发展的最新动态，或特定区域、特定行业或产业的专项研究资讯服务；",
+                    "3.金融市场资讯：为甲方提供有关外汇市场、资金拆借市场和国内外债券市场、股票市场、期货市场的最新市场信息；",
+                    "4.金融产品资讯：乙方可根据甲方的经营情况、财务状况及实际需求，结合资本市场、货币市场、外汇市场等金融市场走势，对各类金融产品和业务的监管政策、产品特点、交易结构进行比较分析；"
+                ] },
+                { level1: "（二）并购重组通用条款", clauses: [
+                    "5.根据甲方实际需要，为甲方提供各类与并购重组相关的政策法规咨询和信息提供服务；",
+                    "6.乙方根据项目需要决定是否引入其他中介机构，并向甲方推荐并协助甲方选择相关中介服务机构；",
+                    "7.乙方负责协调相关中介服务机构工作，根据工作需要组织召开由项目各参与方参加的工作小组或联席会议，对有关事宜进行沟通、讨论，独立或与其他中介服务机构配合，协助甲方与相关政府部门进行沟通和协调；",
+                    "8.乙方协调其下属机构与甲方建立稳定的业务关系，并根据甲方后续经营活动中的实际情况和客观需要，为其提供各类后续综合金融服务（需在本协议约定的相关服务费用之外另行收费，具体收费标准由双方另行约定）；"
+                ] },
+                { level1: "（三）收购兼并服务特别条款", clauses: [
+                    "9.前期准备阶段（1）协助甲方评估、制订并购战略；（2）协助甲方搜寻、调查与筛选目标企业，包括境内外上市公司（或非上市公司）；（3）分析、评估并购目标企业的可行性，协助开展尽职调查，提供初步尽职调查报告。",
+                    "10.方案设计阶段（1）协助甲方设计并购方式和交易结构，制定总体并购方案及并购时间表；（2）协助甲方完成并购目标企业的价值评估；（3）协助甲方确定并购目标企业的定价基准，拟定可接受的最高出价与支付方式；（4）协助甲方制订融资策略，评估各类融资方式的利弊，并结合甲方的财务状况、资金需求选择合适的融资产品和方式；（5）协助甲方进行税务筹划与安排；（6）协助甲方制定会计处理方法；（7）协助甲方进行并购法律事务的处理与安排。",
+                    "11.谈判签约阶段（1）协助甲方与并购目标企业就具体并购事宜进行谈判；（2）协调中介机构准备相关并购报批（如需）资料，并协助甲方与有关政府部门、主管机构等进行沟通；（3）协助甲方完成并购文件签署。",
+                    "12.接管与整合阶段（1）协助办理工商登记变更手续；（2）在并购过程中及并购完成后，就接管后的企业整组、一体化和经营发展等问题提出咨询意见，帮助甲方最终实现并购目标。"
+                ] },
+                { level1: "（四）重组改制服务特别条款", clauses: [
+                    "13.协助甲方制定初步的业务方案，如总体方案、可行性分析、时间推进计划、配套融资安排；",
+                    "14.协助甲方进行尽职调查、资产或债务结构分析、价值评估、利润预测；",
+                    "15.按照甲方具体需求，向甲方推荐战略投资者或财务投资者；",
+                    "16.协助甲方与资产注入方、拟引进的战略投资者或财务投资者、债权人、或其它交易对手就具体事宜进行协调、谈判、沟通。"
+                ] }
+            ],
+            "框架2": [
+                { level1: "（一）通用条款", clauses: [
+                    "1.根据甲方实际需要，为甲方提供各类与并购重组相关的政策法规咨询和信息提供服务；",
+                    "2.乙方根据项目需要决定是否引入其他中介机构，并向甲方推荐并协助甲方选择相关中介服务机构；",
+                    "3.乙方负责协调相关中介服务机构工作，根据工作需要组织召开由项目各参与方参加的工作小组或联席会议，对有关事宜进行沟通、讨论，独立或与其他中介服务机构配合，协助甲方与相关政府部门进行沟通和协调；",
+                    "4.乙方协调其下属机构与甲方建立稳定的业务关系，并根据甲方后续经营活动中的实际情况和客观需要，为其提供各类后续综合金融服务（需在财务顾问费之外另行收费）。"
+                ] },
+                { level1: "（二）收购兼并财务顾问服务特别条款", clauses: [
+                    "1.前期准备阶段（1）协助甲方评估、制订并购战略；（2）协助甲方搜寻、调查与筛选目标企业，包括境内外上市公司（或非上市公司）；（3）分析、评估并购目标企业的可行性，实施尽职调查，提供初步尽职调查报告。",
+                    "2.方案设计阶段（1）协助甲方设计并购方式和交易结构，制定总体并购方案及并购时间表；（2）协助甲方完成并购目标企业的价值评估；（3）协助甲方确定并购目标企业的定价基准，拟定可接受的最高出价与支付方式；（4）协助甲方制订融资策略，评估各类融资方式的利弊，并结合甲方的财务状况、资金需求选择合适的融资产品和方式；（5）协助甲方进行税务筹划与安排；（6）协助甲方制定会计处理方法；（7）协助甲方进行并购法律事务的处理与安排。",
+                    "3.谈判签约阶段（1）协助甲方与并购目标企业就具体并购事宜进行谈判；（2）协调中介机构准备相关并购报批（如需）资料，并协助甲方与有关政府部门、主管机构等进行沟通；（3）协助甲方完成并购文件签署。",
+                    "4.接管与整合阶段（1）协助办理工商登记变更手续；（2）在并购过程中及并购完成后，就接管后的企业整组、一体化和经营发展等问题提出咨询意见，帮助甲方最终实现并购目标。"
+                ] },
+                { level1: "（三）重组改制财务顾问服务特别条款", clauses: [
+                    "1.协助甲方制定初步的业务方案，包括总体方案、可行性分析、时间表、配套融资安排；",
+                    "2.协助甲方进行尽职调查、资产或债务结构分析、价值评估、利润预测；",
+                    "3.按照甲方具体需求，向甲方推荐战略投资者或财务投资者；",
+                    "4.协助甲方与资产注入方、拟引进的战略投资者或财务投资者、债权人、或其它交易对手就具体事宜进行协调、谈判、沟通。"
+                ] }
+            ]
+        },
+        "机构合作协议": {
+            "框架1": [
+                { level1: "（一）宏观信息资讯", clauses: [
+                    "1.金融法规资讯：为甲方提供日常生产经营过程中相关金融法律法规资讯；",
+                    "2.宏观经济、产业、行业资讯：根据甲方需求定期或不定期向甲方提供宏观经济、产业发展的最新动态，或特定区域、特定行业或产业的专项研究资讯服务；",
+                    "3.金融市场资讯：为甲方提供有关外汇市场、资金拆借市场和国内外债券市场、股票市场、期货市场的最新市场信息；",
+                    "4.金融产品资讯：乙方可根据甲方的经营情况、财务状况及实际需求，结合资本市场、货币市场、外汇市场等金融市场走势，对各类金融产品和业务的监管政策、产品特点、交易结构进行比较分析。"
+                ] },
+                { level1: "（二）潜在客户推荐", clauses: [
+                    "5.乙方充分利用自身客户资源为甲方寻找目标客户,并向甲方进行推荐；",
+                    "6.乙方协助甲方营销目标客户，了解并梳理客户需求；",
+                    "7.根据甲方需要，乙方协助甲方对目标客户开展尽职调查工作;"
+                ] },
+                { level1: "（三）共同服务第三方客户", clauses: [
+                    "8.结合甲乙双方优势资源和工作经验，共同为第三方提供金融咨询服务",
+                    "9.结合第三方实际需要，甲乙双方共同为其设计投融资方案",
+                    "10.根据进展和需要提供其他咨询意见、或出席必要的谈判或会议；"
+                ] }
+            ],
+            "框架2": [
+                { level1: "框架2条款", clauses: [
+                    "1.乙方充分利用自身客户资源为甲方寻找目标客户,并向甲方进行推荐；",
+                    "2.协助甲方营销目标客户，了解并梳理客户需求；",
+                    "3.根据甲方需要，乙方为甲方提供专业咨询服务，包括产品介绍、行业情况、宏观经济、相关政策规定；",
+                    "4.根据甲方需要，独立或协助甲方共同制订客户服务方案，包括总体方案、推进计划、交易结构等；",
+                    "5.根据甲方需要，独立或协助甲方对目标客户开展尽职调查工作;",
+                    "6.根据实际需要，配合甲方协调有关中介机构开展工作，包含协调中介机构关系、推进工作进程、提出建议、召开协调会等；"
+                ] }
+            ]
+        },
+        "数字政府合作协议": {
+            "框架1": [
+                { level1: "（一）宏观信息资讯", clauses: [
+                    "1.金融法规资讯：为甲方提供日常生产经营过程中相关金融法律法规资讯；",
+                    "2.宏观经济、产业、行业资讯：根据甲方需求定期或不定期向甲方提供宏观经济、产业发展的最新动态，或特定区域、特定行业或产业的专项研究资讯服务；",
+                    "3.金融市场资讯：为甲方提供有关外汇市场、资金拆借市场和国内外债券市场、股票市场、期货市场的最新市场信息；",
+                    "4.金融产品资讯：乙方可根据甲方的经营情况、财务状况及实际需求，结合资本市场、货币市场、外汇市场等金融市场走势，对各类金融产品和业务的监管政策、产品特点、交易结构进行比较分析。"
+                ] },
+                { level1: "（二）发展规划咨询", clauses: [
+                    "5.根据甲方需要，乙方向甲方提供数字政府规划、政务服务及公共服务事项梳理及优化、政策文件标准化梳理、数字化平台实施方案、平台业务运营及技术运维的咨询或服务、政务服务和公共服务场景应用方案、政务服务和金融服务数据治理及应用等服务",
+                    "6.根据甲方整体发展规划，乙方协助甲方搜集、梳理和分析地方产业集群发展状况，跟踪重点产业集群发展情况，为甲方选择产业集群发展路径、政策措施等提供咨询建议。",
+                    "7.根据甲方需求，乙方为甲方产业园区发展规划提供咨询服务，如园区内企业整体发展建议、融资服务方案设计、园区产业有效整合或园区信息化发展规划实施等。",
+                    "8.根据甲方需求，乙方为甲方提供区域数字政府发展规划等资讯研究服务。"
+                ] }
+            ],
+            "框架2": []
+        }
+    };
+
+    // 报告匹配规则（关键词 -> 报告名称列表）
+    const MATCH_RULES = {
+        "金融法规": ["《金融法规政策分析解读》", "《金融法规及相关政策解读》"],
+        "宏观经济、产业、行业资讯": ["《宏观经济分析报告》", "《区域经济分析及行业分析报告》", "《企业所在行业分析报告》"],
+        "金融市场资讯": ["《金融市场运行分析》"],
+        "金融产品资讯": ["《金融产品分析报告》", "《资产管理市场分析报告》", "《资产管理金融产品分析报告》"],
+        "绿色信息资讯": ["《绿色金融市场分析报告》"],
+        "资产保值增值": ["《企业资产管理服务方案》", "《投资风险评估报告》", "《营运资金管理建议书》", "《项目运营管理建议书》"],
+        "资产交易撮合": ["《中介机构推介报告》"],
+        "经营状况分析": ["《企业经营状况分析报告》"],
+        "财务状况分析": ["《财务状况分析报告》", "《企业财务情况诊断报告》"],
+        "投融资方案设计": ["《投融资方案设计报告》"],
+        "尽职调查": ["《尽职调查报告》"],
+        "绿色建筑": ["《绿色建筑市场咨询》"]
+    };
+
+    // 报告类型映射
+    const REPORT_TYPE_MAP = {
+        "《金融法规政策分析解读》": "信息资讯类",
+        "《金融法规及相关政策解读》": "信息资讯类",
+        "《宏观经济分析报告》": "信息资讯类",
+        "《区域经济分析及行业分析报告》": "信息资讯类",
+        "《企业所在行业分析报告》": "信息资讯类",
+        "《金融市场运行分析》": "信息资讯类",
+        "《金融产品分析报告》": "信息资讯类",
+        "《资产管理市场分析报告》": "信息资讯类",
+        "《资产管理金融产品分析报告》": "信息资讯类",
+        "《绿色金融市场分析报告》": "信息资讯类",
+        "《企业资产管理服务方案》": "企业分析类",
+        "《投资风险评估报告》": "企业分析类",
+        "《营运资金管理建议书》": "企业分析类",
+        "《项目运营管理建议书》": "企业分析类",
+        "《中介机构推介报告》": "企业分析类",
+        "《企业经营状况分析报告》": "企业分析类",
+        "《财务状况分析报告》": "企业分析类",
+        "《企业财务情况诊断报告》": "企业分析类",
+        "《投融资方案设计报告》": "企业分析类",
+        "《尽职调查报告》": "企业分析类",
+        "《绿色建筑市场咨询》": "企业分析类",
+        "《债务优化实例及产品介绍》": "企业分析类",
+        "《债务情况诊断分析》": "企业分析类",
+        "《债务优化方案设计》": "企业分析类",
+        "《项目融资方案建议书》": "企业分析类",
+        "《项目风险管理建议书》": "企业分析类",
+        "《项目融资需求分析及风险报告》": "企业分析类",
+        "《项目融资实施方案》": "企业分析类",
+        "《项目资金管理建议书》": "企业分析类",
+        "《项目融资风险评估报告》": "企业分析类"
+    };
+
+    function getReportType(reportName) {
+        if (REPORT_TYPE_MAP[reportName]) return REPORT_TYPE_MAP[reportName];
+        if (reportName.includes("分析报告") || reportName.includes("资讯") || reportName.includes("市场运行")) return "信息资讯类";
+        return "企业分析类";
+    }
+
+    function getReportsForClause(clauseText) {
+        let reports = new Set();
+        for (let [keyword, reportList] of Object.entries(MATCH_RULES)) {
+            if (clauseText.includes(keyword)) {
+                reportList.forEach(r => reports.add(r));
+            }
+        }
+        if (reports.size === 0) {
+            if (clauseText.includes("金融法规")) reports.add("《金融法规政策分析解读》");
+            if (clauseText.includes("宏观经济")) reports.add("《区域经济分析及行业分析报告》");
+            if (clauseText.includes("金融市场")) reports.add("《金融市场运行分析》");
+        }
+        return Array.from(reports);
+    }
+
+    let currentType = "全面金融解决方案";
+    let currentFramework = "框架1";
+    let clauseChecked = new Map();
+    let reportChecked = new Map();
+
+    function renderClauseTree() {
+        const groups = PROTOCOLS[currentType]?.[currentFramework] || [];
+        const container = document.getElementById('clauseTree');
+        if (!groups.length) {
+            container.innerHTML = '<p>当前框架无条款数据</p>';
+            return;
+        }
+        let html = '';
+        for (let group of groups) {
+            html += `<div class="clause-group"><div class="group-title">${group.level1}</div>`;
+            for (let clauseText of group.clauses) {
+                const secNum = clauseText.match(/^\d+/)?.[0] || '';
+                const clauseKey = `${group.level1}_${secNum}`;
+                const isChecked = clauseChecked.get(clauseKey) || false;
+                html += `<div class="clause-item">
+                            <div class="clause-header">
+                                <input type="checkbox" class="clause-chk" data-key="${clauseKey}" data-text="${escapeHtml(clauseText)}" data-level1="${group.level1}" ${isChecked ? 'checked' : ''}>
+                                <label>${escapeHtml(clauseText)}</label>
+                            </div>
+                        </div>`;
+            }
+            html += `</div>`;
+        }
+        container.innerHTML = html;
+        document.querySelectorAll('.clause-chk').forEach(chk => {
+            chk.addEventListener('change', (e) => {
+                const key = chk.getAttribute('data-key');
+                clauseChecked.set(key, chk.checked);
+                renderRightPanel();
+                updateResultTable();
+                updateClauseCopyBox();
+            });
+        });
+    }
+
+    function renderRightPanel() {
+        const groups = PROTOCOLS[currentType]?.[currentFramework] || [];
+        const container = document.getElementById('reportPanel');
+        let html = '';
+        for (let group of groups) {
+            for (let clauseText of group.clauses) {
+                const secNum = clauseText.match(/^\d+/)?.[0] || '';
+                const clauseKey = `${group.level1}_${secNum}`;
+                if (clauseChecked.get(clauseKey)) {
+                    const reports = getReportsForClause(clauseText);
+                    if (reports.length === 0) continue;
+                    html += `<div class="report-for-clause">
+                                <div class="clause-ref">${group.level1}${secNum} ${escapeHtml(clauseText.substring(0, 60))}…</div>
+                                <div>`;
+                    for (let rep of reports) {
+                        const reportKey = `${clauseKey}_${rep}`;
+                        const repChecked = reportChecked.get(reportKey) || false;
+                        html += `<div class="report-item">
+                                    <input type="checkbox" class="report-chk" data-clause-key="${clauseKey}" data-report="${escapeHtml(rep)}" ${repChecked ? 'checked' : ''}>
+                                    <label>${escapeHtml(rep)}</label>
+                                </div>`;
+                    }
+                    html += `</div></div>`;
+                }
+            }
+        }
+        if (html === '') html = '<p>请先在左侧勾选条款，右侧会显示可选报告。</p>';
+        container.innerHTML = html;
+        document.querySelectorAll('.report-chk').forEach(chk => {
+            chk.addEventListener('change', (e) => {
+                const clauseKey = chk.getAttribute('data-clause-key');
+                const reportName = chk.getAttribute('data-report');
+                const reportKey = `${clauseKey}_${reportName}`;
+                reportChecked.set(reportKey, chk.checked);
+                updateResultTable();
+            });
+        });
+    }
+
+    function updateResultTable() {
+        const groups = PROTOCOLS[currentType]?.[currentFramework] || [];
+        const selected = new Map(); // 报告名称 -> { clauseNumbers: Set, type: string }
+        for (let group of groups) {
+            for (let clauseText of group.clauses) {
+                const secNum = clauseText.match(/^\d+/)?.[0] || '';
+                const clauseKey = `${group.level1}_${secNum}`;
+                const reports = getReportsForClause(clauseText);
+                for (let rep of reports) {
+                    const reportKey = `${clauseKey}_${rep}`;
+                    if (reportChecked.get(reportKey)) {
+                        if (!selected.has(rep)) {
+                            selected.set(rep, { clauseNumbers: new Set(), type: getReportType(rep) });
+                        }
+                        const clauseNumber = `${group.level1}${secNum}`;
+                        selected.get(rep).clauseNumbers.add(clauseNumber);
+                    }
+                }
+            }
+        }
+        const container = document.getElementById('tableContainer');
+        if (selected.size === 0) {
+            container.innerHTML = '<div style="padding:20px;text-align:center;">请勾选报告以生成匹配结果（表格）</div>';
+            return;
+        }
+        let html = `<table><thead><th>序号</th><th>报告类型</th><th>报告名称</th><th>协议条款编号</th></thead><tbody>`;
+        let idx = 1;
+        for (let [reportName, { clauseNumbers, type }] of selected.entries()) {
+            const numbers = Array.from(clauseNumbers).join('；');
+            html += `<tr><td style="text-align:center;">${idx++}</td><td style="text-align:center;">${escapeHtml(type)}</td><td style="text-align:left;">${escapeHtml(reportName)}</td><td style="text-align:left;">${escapeHtml(numbers)}</td></tr>`;
+        }
+        html += `</tbody></table>`;
+        container.innerHTML = html;
+    }
+
+    function updateClauseCopyBox() {
+        const groups = PROTOCOLS[currentType]?.[currentFramework] || [];
+        // 按一级标题分组，每个标题下收集勾选的条款
+        const grouped = new Map(); // level1 -> array of clauseText
+        for (let group of groups) {
+            const level1 = group.level1;
+            if (!grouped.has(level1)) grouped.set(level1, []);
+            for (let clauseText of group.clauses) {
+                const secNum = clauseText.match(/^\d+/)?.[0] || '';
+                const clauseKey = `${group.level1}_${secNum}`;
+                if (clauseChecked.get(clauseKey)) {
+                    grouped.get(level1).push(clauseText);
+                }
+            }
+        }
+        let output = '';
+        for (let [level1, clauses] of grouped.entries()) {
+            if (clauses.length === 0) continue;
+            output += level1 + '\n';
+            for (let clause of clauses) {
+                output += clause + '\n';
+            }
+        }
+        const box = document.getElementById('clauseCopyBox');
+        if (output === '') {
+            box.innerText = '未勾选任何条款';
+        } else {
+            box.innerText = output;
+        }
+    }
+
+    function selectAll() {
+        const groups = PROTOCOLS[currentType]?.[currentFramework] || [];
+        for (let group of groups) {
+            for (let clauseText of group.clauses) {
+                const secNum = clauseText.match(/^\d+/)?.[0] || '';
+                const clauseKey = `${group.level1}_${secNum}`;
+                clauseChecked.set(clauseKey, true);
+                const reports = getReportsForClause(clauseText);
+                for (let rep of reports) {
+                    const reportKey = `${clauseKey}_${rep}`;
+                    reportChecked.set(reportKey, true);
+                }
+            }
+        }
+        renderClauseTree();
+        renderRightPanel();
+        updateResultTable();
+        updateClauseCopyBox();
+    }
+
+    function clearAll() {
+        clauseChecked.clear();
+        reportChecked.clear();
+        renderClauseTree();
+        renderRightPanel();
+        updateResultTable();
+        updateClauseCopyBox();
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : (m === '<' ? '&lt;' : '&gt;'));
+    }
+
+    async function copyFullTable() {
+        const table = document.querySelector('#tableContainer table');
+        if (!table) { alert('没有可复制的表格'); return; }
+        const rows = [];
+        const headers = ['序号', '报告类型', '报告名称', '协议条款编号'];
+        rows.push(headers.join('\t'));
+        const bodyRows = table.querySelectorAll('tbody tr');
+        for (let row of bodyRows) {
+            const cells = row.querySelectorAll('td');
+            const rowData = [cells[0].innerText.trim(), cells[1].innerText.trim(), cells[2].innerText.trim(), cells[3].innerText.trim()];
+            rows.push(rowData.join('\t'));
+        }
+        const text = rows.join('\n');
+        if (navigator.clipboard && window.isSecureContext !== false) {
+            try { await navigator.clipboard.writeText(text); alert('✅ 表格已复制'); } catch(e) { fallbackCopy(text); }
+        } else { fallbackCopy(text); }
+        function fallbackCopy(txt) {
+            const ta = document.createElement('textarea');
+            ta.value = txt;
+            ta.style.position = 'fixed'; ta.style.top = '-9999px';
+            document.body.appendChild(ta); ta.select();
+            let ok = false;
+            try { ok = document.execCommand('copy'); } catch(e) {}
+            document.body.removeChild(ta);
+            alert(ok ? '✅ 表格已复制' : '❌ 复制失败');
+        }
+    }
+
+    async function copyClauseText() {
+        const box = document.getElementById('clauseCopyBox');
+        const text = box.innerText;
+        if (!text || text === '未勾选任何条款') {
+            alert('没有勾选的条款');
+            return;
+        }
+        if (navigator.clipboard && window.isSecureContext !== false) {
+            try { await navigator.clipboard.writeText(text); alert('✅ 协议条款已复制'); } catch(e) { fallbackCopy(text); }
+        } else { fallbackCopy(text); }
+        function fallbackCopy(txt) {
+            const ta = document.createElement('textarea');
+            ta.value = txt;
+            ta.style.position = 'fixed'; ta.style.top = '-9999px';
+            document.body.appendChild(ta); ta.select();
+            let ok = false;
+            try { ok = document.execCommand('copy'); } catch(e) {}
+            document.body.removeChild(ta);
+            alert(ok ? '✅ 协议条款已复制' : '❌ 复制失败');
+        }
+    }
+
+    // 初始化下拉框
+    const projectSelect = document.getElementById('projectType');
+    projectSelect.innerHTML = Object.keys(PROTOCOLS).map(t => `<option value="${t}">${t}</option>`).join('');
+    projectSelect.value = currentType;
+    projectSelect.addEventListener('change', (e) => {
+        currentType = e.target.value;
+        currentFramework = "框架1";
+        document.getElementById('framework').value = currentFramework;
+        clauseChecked.clear();
+        reportChecked.clear();
+        renderClauseTree();
+        renderRightPanel();
+        updateResultTable();
+        updateClauseCopyBox();
+    });
+    document.getElementById('framework').addEventListener('change', (e) => {
+        currentFramework = e.target.value;
+        clauseChecked.clear();
+        reportChecked.clear();
+        renderClauseTree();
+        renderRightPanel();
+        updateResultTable();
+        updateClauseCopyBox();
+    });
+    document.getElementById('selectAllBtn').addEventListener('click', selectAll);
+    document.getElementById('clearAllBtn').addEventListener('click', clearAll);
+    document.getElementById('copyTableBtn').addEventListener('click', copyFullTable);
+    document.getElementById('copyClauseBtn').addEventListener('click', copyClauseText);
+
+    // 初始渲染
+    renderClauseTree();
+    renderRightPanel();
+    updateResultTable();
+    updateClauseCopyBox();
+</script>
+</body>
+</html>
