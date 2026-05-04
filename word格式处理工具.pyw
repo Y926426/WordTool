@@ -237,7 +237,7 @@ class WordToolApp:
 
     def run_update(self):
         if not messagebox.askyesno("更新确认",
-                                   "是否从 GitHub 获取最新版本？\n主程序将关闭并自动更新。"):
+                                   "是否让杨博提供最新版本？\n主程序将关闭并自动更新。"):
             return
         self.log_msg("📡 正在启动更新程序...")
         updater_path = os.path.join(os.path.dirname(__file__), "updater.py")
