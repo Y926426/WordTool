@@ -99,73 +99,88 @@ def run(doc):
                     except:
                         pass
 
-        # 6. 表格处理
-        for tbl in doc.Tables:
+        # 6. 表格处理（每个表格独立，异常时不中断）
+        for tbl_idx, tbl in enumerate(doc.Tables, start=1):
             changes = []
-            # 6.1 表格整体水平居中
+            # 整体用 try-except 包裹，避免单个表格错误中断全部
             try:
-                if tbl.Rows.Alignment != 1:
-                    tbl.Rows.Alignment = 1
-                    changes.append("表格整体水平居中")
-            except:
-                pass
-            # 6.2 单元格内容水平垂直居中
-            has_align = False
-            for row in tbl.Rows:
-                for cell in row.Cells:
-                    try:
-                        if cell.Range.ParagraphFormat.Alignment != 1:
-                            cell.Range.ParagraphFormat.Alignment = 1
-                            has_align = True
-                    except:
-                        pass
-                    try:
-                        if cell.VerticalAlignment != 1:
-                            cell.VerticalAlignment = 1
-                            has_align = True
-                    except:
-                        pass
-            if has_align:
-                changes.append("单元格内容水平垂直居中")
-            # 6.3 首行重复标题
-            if tbl.Rows.Count >= 1:
+                # 6.1 表格整体水平居中
                 try:
-                    if not tbl.Rows(1).HeadingFormat:
-                        tbl.Rows(1).HeadingFormat = True
-                        changes.append("首行作为标题行重复")
+                    if tbl.Rows.Alignment != 1:
+                        tbl.Rows.Alignment = 1
+                        changes.append("表格整体水平居中")
                 except:
                     pass
-            # 6.4 应用表格样式
-            if tbl.Rows.Count >= 1:
-                try:
-                    if tbl.Rows(1).Range.Style.NameLocal != "表格（首行）":
-                        tbl.Rows(1).Range.Style = "表格（首行）"
-                        changes.append("首行应用样式「表格（首行）」")
-                except:
-                    pass
-            for i in range(2, tbl.Rows.Count + 1):
-                try:
-                    if tbl.Rows(i).Range.Style.NameLocal != "表格（内容）":
-                        tbl.Rows(i).Range.Style = "表格（内容）"
-                        changes.append(f"第{i}行应用样式「表格（内容）」")
-                except:
-                    pass
-            # 6.5 首行填充色（改进版：逐个单元格尝试，并统计成功数量）
-            if tbl.Rows.Count >= 1:
-                target_color = 0x814B1D
-                success_count = 0
-                for cell in tbl.Rows(1).Cells:
+                # 6.2 单元格内容水平垂直居中
+                has_align = False
+                for row in tbl.Rows:
+                    for cell in row.Cells:
+                        try:
+                            if cell.Range.ParagraphFormat.Alignment != 1:
+                                cell.Range.ParagraphFormat.Alignment = 1
+                                has_align = True
+                        except:
+                            pass
+                        try:
+                            if cell.VerticalAlignment != 1:
+                                cell.VerticalAlignment = 1
+                                has_align = True
+                        except:
+                            pass
+                if has_align:
+                    changes.append("单元格内容水平垂直居中")
+                # 6.3 首行重复标题
+                if tbl.Rows.Count >= 1:
                     try:
-                        if cell.Shading.BackgroundPatternColor != target_color:
-                            cell.Shading.BackgroundPatternColor = target_color
-                            success_count += 1
+                        if not tbl.Rows(1).HeadingFormat:
+                            tbl.Rows(1).HeadingFormat = True
+                            changes.append("首行作为标题行重复")
                     except:
                         pass
-                if success_count > 0:
-                    changes.append(f"首行底纹颜色设置为深蓝色（成功 {success_count}/{len(tbl.Rows(1).Cells)} 个单元格）")
+                # 6.4 应用表格样式
+                if tbl.Rows.Count >= 1:
+                    try:
+                        if tbl.Rows(1).Range.Style.NameLocal != "表格（首行）":
+                            tbl.Rows(1).Range.Style = "表格（首行）"
+                            changes.append("首行应用样式「表格（首行）」")
+                    except:
+                        pass
+                for i in range(2, tbl.Rows.Count + 1):
+                    try:
+                        if tbl.Rows(i).Range.Style.NameLocal != "表格（内容）":
+                            tbl.Rows(i).Range.Style = "表格（内容）"
+                            changes.append(f"第{i}行应用样式「表格（内容）」")
+                    except:
+                        pass
+                # 6.5 首行填充色
+                if tbl.Rows.Count >= 1:
+                    target_color = 0x814B1D
+                    success_count = 0
+                    for cell in tbl.Rows(1).Cells:
+                        try:
+                            if cell.Shading.BackgroundPatternColor != target_color:
+                                cell.Shading.BackgroundPatternColor = target_color
+                                success_count += 1
+                        except:
+                            pass
+                    if success_count > 0:
+                        changes.append(f"首行底纹颜色设置为深蓝色（成功 {success_count}/{len(tbl.Rows(1).Cells)} 个单元格）")
+            except Exception as e:
+                # 该表格整体出错，添加错误批注
+                changes.append(f"⚠️ 处理失败：{str(e)[:50]}，请手动调整")
+                # 尝试在表格首行第一个单元格添加批注
+                try:
+                    comment_range = tbl.Rows(1).Cells(1).Range
+                except:
+                    comment_range = tbl.Range
+                add_comment(comment_range, f"表格{tbl_idx}格式调整失败，请手动检查。")
+            # 只要 changes 非空，就添加批注（包括正常修改或错误信息）
             if changes:
                 modified = True
-                comment_range = tbl.Rows(1).Cells(1).Range
+                try:
+                    comment_range = tbl.Rows(1).Cells(1).Range
+                except:
+                    comment_range = tbl.Range
                 comment_text = "表格格式调整：\n• " + "\n• ".join(changes)
                 add_comment(comment_range, comment_text)
 
